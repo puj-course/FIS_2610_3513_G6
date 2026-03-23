@@ -1,133 +1,118 @@
-# Plantilla del README del proyecto 2610
+![UNIMERCS Logo](assets/UnimercsLogo.png)
 
-# Nombre de la Aplicación
+# UNIMERCS
 
 ## Descripción
-Breve descripción del sistema de software, el problema que busca solucionar y el contexto general del proyecto.
+
+UNIMERCS es una plataforma de marketplace universitario diseñada para estudiantes de la Pontificia Universidad Javeriana. El sistema permite a los estudiantes publicar, explorar y contactar vendedores de productos y servicios dentro del campus, incluyendo libros, comida y objetos de segunda mano. El objetivo es centralizar el intercambio entre la comunidad estudiantil en un solo lugar seguro y accesible con correo institucional.
 
 ---
 
 ## Equipo del Proyecto
-| Nombre        | Rol                   | GitHub / Perfil |
-|--------------|-----------------------|-----------------|
-| Estudiante 1 | Scrum Master          | github.com/usuario1 |
-| Estudiante 2 | Product Owner         | github.com/usuario2 |
-| Estudiante 3 | Sprint Planner        | github.com/usuario3 |
-| Estudiante 4 | Configuration Manager | github.com/usuario4 |
-| Estudiante 5 | QA Lead               | github.com/usuario5 |
-| Estudiante 6 | DevOps Engineer       | github.com/usuario6 |
+
+| Nombre               | Rol                                   | GitHub                                             |
+|----------------------|---------------------------------------|----------------------------------------------------|
+| Juan Pablo Sánchez   | Scrum Master · Product Owner          | [jsanchez312](https://github.com/jsanchez312)      |
+| German Rodriguez     | Developer · QA Lead                   | [germandrzmr](https://github.com/germandrzmr)      |
 
 ---
 
 ## Tecnologías Utilizadas
-- **Frontend:** JavaFX
-- **Backend:** Java – Spring Boot
-- **Base de Datos:** PostgreSQL
-- **IA / Data Science:** Python, Pandas, Scikit-learn
-- **DevOps:** GitHub Actions, Docker, SonarQube
-- **Control de versiones:** Git
+
+- **Frontend:** HTML5, CSS3, JavaScript (Vanilla)
+- **Base de Datos:** PostgreSQL *(por implementar)*
+- **Control de versiones:** Git + GitHub
+- **Metodología:** Scrum + Gitflow
 
 ---
 
 ## Estructura del Proyecto
+
 ```text
-project-name/
+unimercs/
 ├── .github/
 │   ├── ISSUE_TEMPLATE/
-│   │   ├── bug_report.md
-│   │   ├── feature_request.md
-│   ├── PULL_REQUEST_TEMPLATE.md
-│   └── workflows/
-│       ├── ci.yml
-│       └── cd.yml
-├── conf/
-│   ├── config.yaml
-│   └── settings.json
+│   │   ├── user_story.md
+│   │   └── bug_report.md
+│   └── PULL_REQUEST_TEMPLATE.md
+├── assets/
+│   └── logo.png
 ├── docs/
-│   ├── api/
-│   ├── architecture/
-│   └── user_guide/
-├── jupyter/
-│   ├── notebooks/
-│   │   ├── exploration.ipynb
-│   │   └── analysis.ipynb
-│   └── datasets/
-│       ├── data1.csv
-│       └── data2.csv
-├── scripts/
-│   ├── setup.sh
-│   ├── deploy.sh
-│   └── test.sh
+│   ├── ECB.md
+│   ├── clases.md
+│   ├── componentes.md
+│   └── despliegue.md
 ├── src/
-│   ├── main/
-│   │   ├── java/ (o python/, etc. según el lenguaje)
-│   │   └── resources/
-│   ├── test/
-│   │   ├── java/ (o python/, etc. según el lenguaje)
-│   │   └── resources/
-├── temp/
-│   ├── temp_file.txt
-│   └── temp_data/
-│       ├── temp1.tmp
-│       └── temp2.tmp
+│   ├── prueba.html
+│   ├── pruebaExplorar.html
+│   ├── pruebaCrearPub.html
+│   ├── pruebaPerfil.html
+│   ├── betalogin.html
+│   ├── BetaRegister.html
+│   ├── pruebaPerfil.css
+│   └── pruebaPerfil.js
 ├── .gitignore
 ├── README.md
-├── LICENSE
-├── CHANGELOG.md
-├── CONTRIBUTING.md
-├── Dockerfile
-├── docker-compose.yml
-└── Makefile
+└── CHANGELOG.md
 ```
 
 ---
 
 ## Instalación y Ejecución
+
 **Requisitos**
-- Docker y Docker Compose
 - Git
-- Java 17+
-- Python 3.10+
+- Navegador web moderno (Chrome, Firefox, Edge)
+- Extensión Live Server (recomendada para desarrollo local)
 
-## Clonar el repositorio
-```text
-git clone https://github.com/organizacion/proyecto.git
-cd proyecto
+### Clonar el repositorio
+
+```bash
+git clone https://github.com/jsanchez312/unimercs.git
+cd unimercs
 ```
 
-## Ejecución con Docker
-```text
-docker-compose up --build
+### Ejecución local
+
+Abre el archivo `prueba.html` directamente en el navegador, o usa Live Server en VS Code:
+
+```bash
+# Con Live Server en VS Code
+# Click derecho sobre prueba.html → "Open with Live Server"
 ```
 
-## Ejecución de pruebas
-```text
-docker-compose run backend mvn test
-docker-compose run ai-model pytest
-```
+### Ejecución de pruebas
+
+Las pruebas son manuales por ahora. Verifica los flujos principales:
+- Registro e inicio de sesión con correo `@javeriana.edu.co`
+- Creación y visualización de publicaciones
+- Filtrado por categoría en la pantalla Explorar
 
 ---
 
 ## Contexto Académico
+
 - **Asignatura:** Fundamentos de Ingeniería de Software
 - **Docente:** Luis Gabriel Moreno Sandoval, PhD
-- **Contacto:** morenoluis@javeriana.edu.co
+- **Contacto docente:** morenoluis@javeriana.edu.co
+- **Institución:** Pontificia Universidad Javeriana, Bogotá
 
 ---
 
 ## Contacto
 
-**Equipo de desarrollo:**
+**Juan Pablo Sánchez**
+Estudiante, Pontificia Universidad Javeriana
+📧 sanchez.jp@javeriana.edu.co
+🐙 [github.com/jsanchez312](https://github.com/jsanchez312)
 
-**Estudiante 1**  
-Estudiante de Ciencia de Datos, Pontificia Universidad Javeriana  
-📧 est1.u@javeriana.edu.co  
+**Germán Rodríguez**
+Estudiante, Pontificia Universidad Javeriana
+📧 ge.rodriguez@javeriana.edu.co
+🐙 [github.com/germandrzmr](https://github.com/germandrzmr)
 
-**Estudiante 2**  
-Estudiante de Ingeniería en Sistemas, Pontificia Universidad Javeriana  
-📧 est2@javeriana.edu.co  
-
---- 
+---
 
 ## Licencia
-Proyecto desarrollado con fines académicos.
+
+Proyecto desarrollado con fines académicos — Pontificia Universidad Javeriana 2025.
