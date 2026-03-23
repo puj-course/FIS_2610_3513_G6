@@ -35,6 +35,8 @@ unimercs/
 │   │   ├── user_story.md
 │   │   └── bug_report.md
 │   └── PULL_REQUEST_TEMPLATE.md
+├── assets/
+│   └── logo.png
 ├── docs/
 │   ├── ECB.md
 │   ├── clases.md
@@ -48,8 +50,7 @@ unimercs/
 │   ├── betalogin.html
 │   ├── BetaRegister.html
 │   ├── pruebaPerfil.css
-│   ├── pruebaPerfil.js
-│   └── assets/
+│   └── pruebaPerfil.js
 ├── .gitignore
 ├── README.md
 └── CHANGELOG.md
@@ -105,7 +106,7 @@ Estudiante, Pontificia Universidad Javeriana
 📧 sanchez.jp@javeriana.edu.co
 🐙 [github.com/jsanchez312](https://github.com/jsanchez312)
 
-**German Rodriguez**
+**Germán Rodríguez**
 Estudiante, Pontificia Universidad Javeriana
 📧 ge.rodriguez@javeriana.edu.co
 🐙 [github.com/germandrzmr](https://github.com/germandrzmr)
