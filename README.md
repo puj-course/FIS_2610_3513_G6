@@ -1,3 +1,5 @@
+![UNIMERCS Logo](assets/UnimercsLogo.png)
+
 # UNIMERCS
 
 ## Descripción
