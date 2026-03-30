@@ -1,19 +1,26 @@
 ![UNIMERCS Logo](assets/UnimercsLogo.png)
 
 # UNIMERCS
+### Compra. Vende. Conéctate en el campus.
 
 ## Descripción
 
-UNIMERCS es una plataforma de marketplace universitario diseñada para estudiantes de la Pontificia Universidad Javeriana. El sistema permite a los estudiantes publicar, explorar y contactar vendedores de productos y servicios dentro del campus, incluyendo libros, comida y objetos de segunda mano. El objetivo es centralizar el intercambio entre la comunidad estudiantil en un solo lugar seguro y accesible con correo institucional.
+UNIMERCS es una plataforma web de marketplace universitario diseñada exclusivamente para estudiantes de la Pontificia Universidad Javeriana. Permite publicar, explorar y contactar vendedores de productos y servicios dentro del campus, incluyendo libros, comida y objetos de segunda mano.
+
+A diferencia de otras plataformas genéricas, UNIMERCS está pensada para la comunidad javeriana: acceso exclusivo con correo institucional, sin intermediarios y sin costos.
+
+**¿Qué problema resuelve?**
+
+Los estudiantes no tienen un espacio centralizado y seguro para intercambiar productos dentro del campus. Plataformas como Facebook Marketplace o Instagram no garantizan que el comprador o vendedor sea alguien de la misma universidad, generando desconfianza. UNIMERCS resuelve esto limitando el acceso únicamente a correos `@javeriana.edu.co`, creando una comunidad cerrada y confiable.
 
 ---
 
 ## Equipo del Proyecto
 
-| Nombre               | Rol                                   | GitHub                                             |
-|----------------------|---------------------------------------|----------------------------------------------------|
-| Juan Pablo Sánchez   | Scrum Master · Product Owner          | [jsanchez312](https://github.com/jsanchez312)      |
-| German Rodriguez     | Developer · QA Lead                   | [germandrzmr](https://github.com/germandrzmr)      |
+| Nombre               | Rol                                        | GitHub                                          |
+|----------------------|--------------------------------------------|-------------------------------------------------|
+| Juan Pablo Sánchez   | Scrum Master · Product Owner               | [@jsanchez312](https://github.com/jsanchez312) |
+| German Rodriguez     | Developer · QA Lead                        | [@germandrzmr](https://github.com/germandrzmr) |
 
 ---
 
@@ -60,10 +67,12 @@ unimercs/
 
 ## Instalación y Ejecución
 
-**Requisitos**
+### Prerrequisitos
+
 - Git
 - Navegador web moderno (Chrome, Firefox, Edge)
-- Extensión Live Server (recomendada para desarrollo local)
+- IDE recomendado: Visual Studio Code
+- Extensión recomendada: Live Server
 
 ### Clonar el repositorio
 
@@ -74,16 +83,16 @@ cd unimercs
 
 ### Ejecución local
 
-Abre el archivo `prueba.html` directamente en el navegador, o usa Live Server en VS Code:
+Abre `prueba.html` directamente en el navegador, o usa Live Server en VS Code:
 
 ```bash
-# Con Live Server en VS Code
 # Click derecho sobre prueba.html → "Open with Live Server"
 ```
 
 ### Ejecución de pruebas
 
 Las pruebas son manuales por ahora. Verifica los flujos principales:
+
 - Registro e inicio de sesión con correo `@javeriana.edu.co`
 - Creación y visualización de publicaciones
 - Filtrado por categoría en la pantalla Explorar
@@ -102,14 +111,12 @@ Las pruebas son manuales por ahora. Verifica los flujos principales:
 ## Contacto
 
 **Juan Pablo Sánchez**
-Estudiante, Pontificia Universidad Javeriana
-📧 sanchez.jp@javeriana.edu.co
-🐙 [github.com/jsanchez312](https://github.com/jsanchez312)
+Estudiante de Ingeniería de Sistemas, Pontificia Universidad Javeriana
+📧 sanchez.jp@javeriana.edu.co · 🐙 [@jsanchez312](https://github.com/jsanchez312)
 
-**Germán Rodríguez**
-Estudiante, Pontificia Universidad Javeriana
-📧 ge.rodriguez@javeriana.edu.co
-🐙 [github.com/germandrzmr](https://github.com/germandrzmr)
+**German Rodriguez**
+Estudiante de Ingeniería de Sistemas, Pontificia Universidad Javeriana
+📧 ge.rodriguez@javeriana.edu.co · 🐙 [@germandrzmr](https://github.com/germandrzmr)
 
 ---
 
