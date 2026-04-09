@@ -1,1 +1,38 @@
 
+name: CD - Package for Deployment
+
+on:
+  push:
+    branches: [ main, develop ]
+  workflow_dispatch:  # permite ejecución manual
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Create deployment package
+      run: |
+        mkdir deploy-package
+        cp *.html deploy-package/
+        cp -r assets deploy-package/ 2>/dev/null || true
+
+    - name: Compress package
+      run: |
+        cd deploy-package
+        zip -r ../unimercs-frontend.zip .
+        cd ..
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: unimercs-frontend
+        path: unimercs-frontend.zip
+
+    - name: List package contents (for verification)
+      run: |
+        echo "📦 Package contents:"
+        unzip -l unimercs-frontend.zip
