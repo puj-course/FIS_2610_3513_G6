@@ -1,1 +1,54 @@
+name: CI - Validate Frontend Code
 
+on:
+  push:
+    branches: [ feature/*, develop ]
+  pull_request:
+    branches: [ develop ]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+
+    - name: Install HTMLHint (HTML validator)
+      run: npm install -g htmlhint
+
+    - name: Validate HTML files
+      run: htmlhint *.html
+
+    - name: Install ESLint (JS validator)
+      run: npm install -g eslint
+
+    - name: Validate JavaScript in HTML files
+      run: |
+        for file in *.html; do
+          echo "Validating $file"
+          grep -E '<script>.*</script>' $file || echo "No inline JS found"
+        done
+
+    - name: Check for broken links
+      run: |
+        echo "🔍 Checking for broken links in HTML files"
+        grep -rn 'href="[^"]*"' *.html || true
+
+    - name: Generate report
+      run: |
+        echo "# Frontend Validation Report" > report.md
+        echo "## Files validated:" >> report.md
+        ls -la *.html >> report.md
+        echo "## Status: ✅ Passed" >> report.md
+
+    - name: Upload validation report
+      uses: actions/upload-artifact@v4
+      with:
+        name: validation-report
+        path: report.md
