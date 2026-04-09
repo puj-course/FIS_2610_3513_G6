@@ -1,10 +1,11 @@
-
 name: CD - Package for Deployment
 
 on:
   push:
     branches: [ main, develop ]
-  workflow_dispatch:  # permite ejecución manual
+  pull_request:
+    branches: [ develop ]
+  workflow_dispatch:
 
 jobs:
   package:
@@ -16,23 +17,36 @@ jobs:
 
     - name: Create deployment package
       run: |
-        mkdir deploy-package
-        cp *.html deploy-package/
-        cp -r assets deploy-package/ 2>/dev/null || true
+        mkdir -p deploy-package
+        cp *.html deploy-package/ 2>/dev/null || true
+        if [ -d "assets" ]; then
+          cp -r assets deploy-package/
+        fi
+        if [ -d "images" ]; then
+          cp -r images deploy-package/
+        fi
+
+    - name: List package contents
+      run: |
+        echo "📦 Package contents:"
+        ls -la deploy-package/
 
     - name: Compress package
       run: |
         cd deploy-package
         zip -r ../unimercs-frontend.zip .
         cd ..
+        echo "✅ Package created: unimercs-frontend.zip"
+
+    - name: Verify ZIP contents
+      run: |
+        unzip -l unimercs-frontend.zip
+        echo ""
+        echo "✅ ZIP file size: $(du -h unimercs-frontend.zip | cut -f1)"
 
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
         name: unimercs-frontend
         path: unimercs-frontend.zip
-
-    - name: List package contents (for verification)
-      run: |
-        echo "📦 Package contents:"
-        unzip -l unimercs-frontend.zip
+        retention-days: 7
