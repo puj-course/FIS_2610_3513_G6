@@ -1,15 +1,17 @@
 name: CI - Validate Frontend Code
-
+# eventos que activan el pipeline
 on:
   push:
     branches: [ feature/*, develop ]
   pull_request:
     branches: [ develop ]
 
+#trabajo principal del pipeline CI
 jobs:
   validate:
     runs-on: ubuntu-latest
 
+# pasos a seguir del pipeline CI
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -74,6 +76,7 @@ jobs:
           echo "" >> js-report.md
         done
 
+#generar reporte final del proceso del pipeline
     - name: Generate final report
       run: |
         cat link-report.md js-report.md > validation-report.md
