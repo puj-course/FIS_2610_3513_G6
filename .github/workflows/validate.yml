@@ -1,0 +1,312 @@
+name: Validate - Verificación de Patrones GoF y de la calidad de Código
+
+#El pipeline se encarha de verificar si los 3 patrones de GOF implementados en el proyecto
+#si estan siendo usados y estan bien estructurados en el codigo.
+#este se ejecuta en todos los PR para que no se rompa nada.
+#este pipeline complementa en el pipeline CI original que valida el codigo HTML, este se encarga de validar la arquitectura JavaScript.
+
+on:
+  push:
+    branches: [ feature/*, develop, main ]
+  pull_request:
+    branches: [ develop, main ]
+
+jobs:
+  verificar-patrones-gof:
+    name: Verificar Patrones GoF (Factory, Facade, Observer)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 1. Descargar código fuente
+        uses: actions/checkout@v4
+
+      - name: 2. Instalar Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # Crear los tests usando el Node.js test runner nativo este no usa dependencias 
+      - name: 3. Crear suite de tests para patrones GoF
+        run: |
+          mkdir -p tests
+
+          cat > tests/gof_patterns.test.mjs << 'TESTEOF'
+          /**
+           * Suite de pruebas — Patrones GoF de UniMercs
+           * Verifica estructura y comportamiento de:
+           *   - Factory Method (user_factory.js)
+           *   - Facade         (auth_facade.js)
+           *   - Observer       (post_observer.js)
+           *
+           * Usa Node.js test runner nativo: sin jest, sin mocha, sin dependencias.
+           */
+          import { test, describe } from 'node:test';
+          import assert from 'node:assert/strict';
+          import { readFileSync } from 'node:fs';
+          import { existsSync } from 'node:fs';
+
+          // ── Helpers ──────────────────────────────────────────────────────────
+          function readPattern(filename) {
+            // Busca en raíz, en js/patterns/, o en patterns/
+            const paths = [
+              filename,
+              `js/patterns/${filename}`,
+              `patterns/${filename}`
+            ];
+            for (const p of paths) {
+              if (existsSync(p)) return readFileSync(p, 'utf8');
+            }
+            throw new Error(`Archivo no encontrado: ${filename} (buscado en raíz, js/patterns/, patterns/)`);
+          }
+
+          // ── Tests: Factory Method ─────────────────────────────────────────────
+          describe('Patrón 1: Factory Method (user_factory.js)', () => {
+
+            test('El archivo user_factory.js existe en el repositorio', () => {
+              const paths = ['user_factory.js','js/patterns/user_factory.js','patterns/user_factory.js'];
+              const found = paths.some(p => existsSync(p));
+              assert.ok(found, 'user_factory.js debe existir en raíz, js/patterns/ o patterns/');
+            });
+
+            test('Contiene la clase abstracta UserFactory (Abstract Creator)', () => {
+              const code = readPattern('user_factory.js');
+              assert.ok(code.includes('class UserFactory'), 'Debe existir la clase UserFactory');
+            });
+
+            test('Contiene el Concrete Creator JaverianaUserFactory', () => {
+              const code = readPattern('user_factory.js');
+              assert.ok(code.includes('class JaverianaUserFactory'), 'Debe existir JaverianaUserFactory');
+            });
+
+            test('JaverianaUserFactory extiende UserFactory (herencia correcta)', () => {
+              const code = readPattern('user_factory.js');
+              assert.ok(
+                code.includes('JaverianaUserFactory extends UserFactory'),
+                'JaverianaUserFactory debe extender UserFactory'
+              );
+            });
+
+            test('Contiene el Concrete Product StudentUser', () => {
+              const code = readPattern('user_factory.js');
+              assert.ok(code.includes('class StudentUser'), 'Debe existir StudentUser');
+            });
+
+            test('StudentUser extiende User (jerarquía de productos)', () => {
+              const code = readPattern('user_factory.js');
+              assert.ok(code.includes('StudentUser extends User'), 'StudentUser debe extender User');
+            });
+
+            test('Valida dominio @javeriana.edu.co', () => {
+              const code = readPattern('user_factory.js');
+              assert.ok(
+                code.includes('@javeriana.edu.co'),
+                'Debe validar el dominio @javeriana.edu.co'
+              );
+            });
+
+            test('Implementa hasheo de contraseña', () => {
+              const code = readPattern('user_factory.js');
+              assert.ok(
+                code.includes('_hashPassword') || code.includes('hashPassword'),
+                'Debe implementar hasheo de contraseña'
+              );
+            });
+          });
+
+          // ── Tests: Facade ─────────────────────────────────────────────────────
+          describe('Patrón 2: Facade (auth_facade.js)', () => {
+
+            test('El archivo auth_facade.js existe en el repositorio', () => {
+              const paths = ['auth_facade.js','js/patterns/auth_facade.js','patterns/auth_facade.js'];
+              const found = paths.some(p => existsSync(p));
+              assert.ok(found, 'auth_facade.js debe existir');
+            });
+
+            test('Contiene la clase AuthFacade (Facade principal)', () => {
+              const code = readPattern('auth_facade.js');
+              assert.ok(code.includes('class AuthFacade'), 'Debe existir AuthFacade');
+            });
+
+            test('AuthFacade expone método login()', () => {
+              const code = readPattern('auth_facade.js');
+              assert.ok(code.includes('login('), 'AuthFacade debe tener método login()');
+            });
+
+            test('AuthFacade expone método logout()', () => {
+              const code = readPattern('auth_facade.js');
+              assert.ok(code.includes('logout()'), 'AuthFacade debe tener método logout()');
+            });
+
+            test('AuthFacade expone método isAuthenticated()', () => {
+              const code = readPattern('auth_facade.js');
+              assert.ok(code.includes('isAuthenticated()'), 'AuthFacade debe tener isAuthenticated()');
+            });
+
+            test('Contiene subsistema UserStorageService', () => {
+              const code = readPattern('auth_facade.js');
+              assert.ok(code.includes('class UserStorageService'), 'Debe existir UserStorageService');
+            });
+
+            test('Contiene subsistema CredentialValidator', () => {
+              const code = readPattern('auth_facade.js');
+              assert.ok(code.includes('class CredentialValidator'), 'Debe existir CredentialValidator');
+            });
+
+            test('Contiene subsistema SessionManager', () => {
+              const code = readPattern('auth_facade.js');
+              assert.ok(code.includes('class SessionManager'), 'Debe existir SessionManager');
+            });
+
+            test('AuthFacade orquesta los 3 subsistemas en el constructor', () => {
+              const code = readPattern('auth_facade.js');
+              assert.ok(
+                code.includes('_storage') && code.includes('_validator') && code.includes('_session'),
+                'AuthFacade debe componer los 3 subsistemas'
+              );
+            });
+          });
+
+          // ── Tests: Observer ───────────────────────────────────────────────────
+          describe('Patrón 3: Observer (post_observer.js)', () => {
+
+            test('El archivo post_observer.js existe en el repositorio', () => {
+              const paths = ['post_observer.js','js/patterns/post_observer.js','patterns/post_observer.js'];
+              const found = paths.some(p => existsSync(p));
+              assert.ok(found, 'post_observer.js debe existir');
+            });
+
+            test('Contiene la interfaz abstracta PostObserver', () => {
+              const code = readPattern('post_observer.js');
+              assert.ok(code.includes('class PostObserver'), 'Debe existir la interfaz PostObserver');
+            });
+
+            test('PostObserver declara método update() abstracto', () => {
+              const code = readPattern('post_observer.js');
+              assert.ok(code.includes('update('), 'PostObserver debe declarar update()');
+            });
+
+            test('Contiene el Subject PostEventBus', () => {
+              const code = readPattern('post_observer.js');
+              assert.ok(code.includes('class PostEventBus'), 'Debe existir PostEventBus (Subject)');
+            });
+
+            test('PostEventBus implementa subscribe()', () => {
+              const code = readPattern('post_observer.js');
+              assert.ok(code.includes('subscribe('), 'PostEventBus debe tener subscribe()');
+            });
+
+            test('PostEventBus implementa unsubscribe()', () => {
+              const code = readPattern('post_observer.js');
+              assert.ok(code.includes('unsubscribe('), 'PostEventBus debe tener unsubscribe()');
+            });
+
+            test('PostEventBus implementa notify()', () => {
+              const code = readPattern('post_observer.js');
+              assert.ok(code.includes('notify('), 'PostEventBus debe tener notify()');
+            });
+
+            test('Existen al menos 2 Concrete Observers (extends PostObserver)', () => {
+              const code = readPattern('post_observer.js');
+              const count = (code.match(/extends PostObserver/g) || []).length;
+              assert.ok(count >= 2, `Debe haber mínimo 2 observers concretos, encontrados: ${count}`);
+            });
+
+            test('Contiene ExploreUpdater como Concrete Observer', () => {
+              const code = readPattern('post_observer.js');
+              assert.ok(code.includes('ExploreUpdater'), 'Debe existir ExploreUpdater');
+            });
+
+            test('Contiene ProfileUpdater como Concrete Observer', () => {
+              const code = readPattern('post_observer.js');
+              assert.ok(code.includes('ProfileUpdater'), 'Debe existir ProfileUpdater');
+            });
+          });
+
+          // ── Resumen ───────────────────────────────────────────────────────────
+          test('Resumen: los 3 archivos de patrones están presentes', () => {
+            const archivos = ['user_factory.js', 'auth_facade.js', 'post_observer.js'];
+            for (const archivo of archivos) {
+              const paths = [archivo, `js/patterns/${archivo}`, `patterns/${archivo}`];
+              const found = paths.some(p => existsSync(p));
+              assert.ok(found, `Falta el archivo de patrón: ${archivo}`);
+            }
+            console.log('✅ Los 3 patrones GoF están presentes en el repositorio');
+          });
+          TESTEOF
+
+          echo "✅ Suite de tests creada en tests/gof_patterns.test.mjs"
+
+      - name: 4. Ejecutar tests de Patrones GoF
+        run: |
+          echo "🧪 Ejecutando verificación de patrones GoF..."
+          node --test tests/gof_patterns.test.mjs
+          echo "✅ Todos los patrones GoF verificados correctamente"
+
+      - name: 5. Verificar que los patrones están integrados en los HTML
+        run: |
+          echo "🔍 Verificando integración de patrones en archivos HTML..."
+
+          check_pattern() {
+            local file=$1
+            local pattern=$2
+            local desc=$3
+            if [ -f "$file" ]; then
+              if grep -q "$pattern" "$file"; then
+                echo "  ✅ $file — $desc encontrado"
+              else
+                echo "  ⚠️  $file — $desc NO encontrado (considera integrarlo)"
+              fi
+            else
+              echo "  ℹ️  $file no existe aún"
+            fi
+          }
+
+          echo ""
+          echo "── Factory Method en register.html ──"
+          check_pattern "register.html" "JaverianaUserFactory" "JaverianaUserFactory"
+          check_pattern "register.html" "AuthFacade"          "AuthFacade"
+
+          echo ""
+          echo "── Facade en login.html ──"
+          check_pattern "login.html" "AuthFacade" "AuthFacade"
+          check_pattern "login.html" "auth.login" "auth.login()"
+
+          echo ""
+          echo "── Observer en post.html ──"
+          check_pattern "post.html" "PostEventBus"  "PostEventBus"
+          check_pattern "post.html" "postBus.notify" "postBus.notify()"
+
+          echo ""
+          echo "✅ Verificación de integración completada"
+
+      - name: 6. Generar reporte de patrones
+        run: |
+          cat > reporte-patrones.md << 'EOF'
+          # Reporte de Verificación — Patrones GoF UniMercs
+
+          ## Patrones implementados
+
+          | Patrón | Tipo GoF | Archivo | Estado |
+          |--------|----------|---------|--------|
+          | Factory Method | Creacional | user_factory.js | ✅ Verificado |
+          | Facade | Estructural | auth_facade.js | ✅ Verificado |
+          | Observer | Comportamiento | post_observer.js | ✅ Verificado |
+
+          ## Historias de usuario relacionadas
+
+          | HU | Patrón aplicado |
+          |----|----------------|
+          | HU-01: Registro con correo javeriano | Factory Method — JaverianaUserFactory valida y crea StudentUser |
+          | HU-02: Iniciar sesión | Facade — AuthFacade orquesta storage + validación + sesión |
+          | HU-03: Crear publicación | Observer — PostEventBus notifica a ExploreUpdater, ProfileUpdater, NotificationObserver |
+          | HU-04: Ver feed y cerrar sesión | Facade — AuthFacade.logout() + Observer FeedRefresher en index |
+
+          EOF
+          echo "✅ Reporte generado"
+
+      - name: 7. Subir reporte de patrones como artefacto
+        uses: actions/upload-artifact@v4
+        with:
+          name: reporte-patrones-gof
+          path: reporte-patrones.md
+          retention-days: 7
