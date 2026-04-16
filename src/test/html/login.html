@@ -363,7 +363,7 @@
 <body>
   <div class="login-container">
     <div class="brand-header">
-      <a href="prueba.html" class="brand"><img src="https://raw.githubusercontent.com/puj-course/FIS_2610_3513_G6/main/assets/UnimercsLogo.png" alt="UNIMERCS" style="height:48px;width:auto;vertical-align:middle;"></a>
+      <a href="index.html" class="brand"><img src="https://raw.githubusercontent.com/puj-course/FIS_2610_3513_G6/main/assets/UnimercsLogo.png" alt="UNIMERCS" style="height:48px;width:auto;vertical-align:middle;"></a>
       <p class="brand-tagline">Tu marketplace de confianza</p>
     </div>
 
@@ -428,7 +428,7 @@
     </div>
 
     <div class="back-home">
-      <a href="#" class="back-link">
+      <a href="index.html" class="back-link">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M19 12H5M12 19l-7-7 7-7"/>
         </svg>
@@ -438,6 +438,54 @@
   </div>
 
   <div id="toast" class="toast" aria-live="polite" hidden></div>
+
+  <!-- =====================================================
+       PATRONES GoF — UniMercs
+       Facade: AuthFacade unifica storage + validación + sesión
+       ===================================================== -->
+  <script>
+    /* ── PATRÓN: FACADE ── */
+    class UserStorageService {
+      static USERS_KEY = 'unimercs_users';
+      getAll() { return JSON.parse(localStorage.getItem(UserStorageService.USERS_KEY) || '[]'); }
+      findByEmail(email) { return this.getAll().find(u => u.email === email.toLowerCase()) || null; }
+    }
+    class CredentialValidator {
+      verify(user, password) {
+        if (!user) throw new Error('No existe una cuenta con este correo electrónico');
+        // Acepta contraseña en texto plano (registro antiguo) o hasheada (registro con Factory)
+        const inputHash = btoa(password + '_unimercs_salt');
+        if (user.passwordHash !== inputHash && user.password !== password)
+          throw new Error('Contraseña incorrecta');
+        return true;
+      }
+    }
+    class SessionManager {
+      static SESSION_KEY = 'unimercs_current_user';
+      createSession(user, remember = false) {
+        const s = { email: user.email, name: user.name, loginTime: new Date().toISOString(), remember };
+        localStorage.setItem(SessionManager.SESSION_KEY, JSON.stringify(s));
+        return s;
+      }
+      destroySession() { localStorage.removeItem(SessionManager.SESSION_KEY); }
+      getSession() { const r = localStorage.getItem(SessionManager.SESSION_KEY); return r ? JSON.parse(r) : null; }
+    }
+    class AuthFacade {
+      constructor() {
+        this._storage  = new UserStorageService();
+        this._validator = new CredentialValidator();
+        this._session  = new SessionManager();
+      }
+      login(email, password, remember = false) {
+        const user = this._storage.findByEmail(email);
+        this._validator.verify(user, password);
+        return this._session.createSession(user, remember);
+      }
+      logout() { this._session.destroySession(); }
+      getCurrentUser() { return this._session.getSession(); }
+      isAuthenticated() { return this._session.getSession() !== null; }
+    }
+  </script>
 
   <script>
     (function() {
@@ -494,7 +542,7 @@
           const user = JSON.parse(currentUser);
           showSuccess(`Ya has iniciado sesión como ${user.name}`);
           setTimeout(() => {
-            window.location.href = 'pruebas.html'; 
+            window.location.href = 'index.html'; 
           }, 1500);
         } catch (err) {
           localStorage.removeItem(CURRENT_USER_KEY);
@@ -528,49 +576,22 @@
 
         setTimeout(() => {
           try {
-            const usersData = localStorage.getItem(USERS_KEY);
-            let users = [];
-            
-            if (usersData) {
-              users = JSON.parse(usersData);
-            }
+            // ── USO DE AUTHFACADE (Facade) ──
+            // Una sola llamada orquesta: buscar usuario → validar credenciales → crear sesión
+            const auth = new AuthFacade();
+            const session = auth.login(email, password, rememberCheckbox.checked);
 
-            const user = users.find(u => u.email === email);
-
-            if (!user) {
-              showError('No existe una cuenta con este correo electrónico');
-              submitBtn.disabled = false;
-              submitBtn.classList.remove('loading');
-              return;
-            }
-
-            if (user.password !== password) {
-              showError('Contraseña incorrecta');
-              submitBtn.disabled = false;
-              submitBtn.classList.remove('loading');
-              return;
-            }
-
-            const sessionData = {
-              email: user.email,
-              name: user.name,
-              loginTime: new Date().toISOString(),
-              remember: rememberCheckbox.checked
-            };
-
-            localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(sessionData));
-            
-            showSuccess(`¡Bienvenido de nuevo, ${user.name}!`);
+            showSuccess(`¡Bienvenido de nuevo, ${session.name}!`);
             submitBtn.textContent = '✓ Iniciando sesión...';
             submitBtn.style.background = 'linear-gradient(90deg,#10b981,#059669)';
 
             setTimeout(() => {
-              window.location.href = 'pruebas.html'; 
+              window.location.href = 'index.html';
             }, 1500);
 
           } catch (err) {
-            console.error('Login error:', err);
-            showError('Error al iniciar sesión. Por favor intenta de nuevo.');
+            // AuthFacade lanza el mensaje exacto: "No existe cuenta..." o "Contraseña incorrecta"
+            showError(err.message || 'Error al iniciar sesión. Por favor intenta de nuevo.');
             submitBtn.disabled = false;
             submitBtn.classList.remove('loading');
           }
@@ -579,7 +600,7 @@
 
       document.getElementById('goto-register')?.addEventListener('click', (e) => {
         e.preventDefault();
-        window.location.href = 'Betaregister.html'; 
+        window.location.href = 'register.html'; 
       });
 
       document.querySelector('.forgot-link')?.addEventListener('click', (e) => {
