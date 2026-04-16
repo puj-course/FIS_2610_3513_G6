@@ -333,6 +333,39 @@ body {
   <div id="toast" class="toast" aria-live="polite" hidden></div>
 
   <script>
+    /* ── PATRONES ── */
+
+    /* FACADE: AuthFacade */
+    class SessionManager {
+      static SESSION_KEY = 'unimercs_current_user';
+      destroySession() { localStorage.removeItem(SessionManager.SESSION_KEY); }
+      getSession() { const r = localStorage.getItem(SessionManager.SESSION_KEY); return r ? JSON.parse(r) : null; }
+    }
+    class AuthFacade {
+      constructor() { this._session = new SessionManager(); }
+      logout() { this._session.destroySession(); }
+      getCurrentUser() { return this._session.getSession(); }
+      isAuthenticated() { return this._session.getSession() !== null; }
+    }
+
+    /* OBSERVER: PostEventBus  */
+    class PostObserver { update(post) { throw new Error('Implementar update()'); } }
+    class PostEventBus {
+      constructor() { this._observers = []; }
+      subscribe(o) { this._observers.push(o); }
+      notify(post) { this._observers.forEach(o => o.update(post)); }
+    }
+    class FeedRefresher extends PostObserver {
+      update(post) {
+        console.log(`[FeedRefresher] Nueva publicación detectada: "${post.title}" — recargando feed`);
+      }
+    }
+    const indexBus = new PostEventBus();
+    indexBus.subscribe(new FeedRefresher());
+    window.addEventListener('unimercs:new-post', (e) => indexBus.notify(e.detail));
+  </script>
+
+  <script>
 (function() {
   const CURRENT_USER_KEY = 'unimercs_current_user';
   const EXPLORE_STORAGE_KEY = 'unimercs_explore_products';
@@ -387,8 +420,9 @@ body {
 
   logoutBtn?.addEventListener('click', (e) => {
     e.preventDefault();
-    localStorage.removeItem(CURRENT_USER_KEY);
-    localStorage.removeItem('session');
+    // USO DE AUTHFACADE
+    const auth = new AuthFacade();
+    auth.logout();
     window.location.reload();
   });
 

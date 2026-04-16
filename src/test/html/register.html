@@ -382,7 +382,7 @@
 <body>
   <div class="register-container">
     <div class="brand-header">
-      <a href="prueba.html" class="brand"><img src="https://raw.githubusercontent.com/puj-course/FIS_2610_3513_G6/main/assets/UnimercsLogo.png" alt="UNIMERCS" style="height:48px;width:auto;vertical-align:middle;"></a>
+      <a href="index.html" class="brand"><img src="https://raw.githubusercontent.com/puj-course/FIS_2610_3513_G6/main/assets/UnimercsLogo.png" alt="UNIMERCS" style="height:48px;width:auto;vertical-align:middle;"></a>
       <p class="brand-tagline">Tu marketplace de confianza</p>
     </div>
 
@@ -483,7 +483,7 @@
     </div>
 
     <div class="back-home">
-      <a href="#" class="back-link">
+      <a href="index.html" class="back-link">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M19 12H5M12 19l-7-7 7-7"/>
         </svg>
@@ -493,6 +493,88 @@
   </div>
 
   <div id="toast" class="toast" aria-live="polite" hidden></div>
+
+  <!-- =====================================================
+       PATRONES GoF — UniMercs
+       1. Factory Method : JaverianaUserFactory / StudentUser
+       2. Facade         : AuthFacade
+       ===================================================== -->
+  <script>
+    /* ── PATRÓN 1: FACTORY METHOD ── */
+    class User {
+      constructor({ id, name, email, passwordHash, role, createdAt }) {
+        this.id = id; this.name = name; this.email = email;
+        this.passwordHash = passwordHash; this.role = role;
+        this.profile = { posts: [], favorites: [], rating: 0 };
+        this.createdAt = createdAt;
+      }
+    }
+    class StudentUser extends User {
+      constructor(data) { super({ ...data, role: 'student' }); }
+      validate() {
+        if (!this.email.endsWith('@javeriana.edu.co'))
+          throw new Error('Correo debe ser @javeriana.edu.co');
+      }
+    }
+    class UserFactory {
+      createUser(data) { throw new Error('Implementar en subclase'); }
+      register(data) {
+        const hashedPassword = this._hashPassword(data.password);
+        const user = this.createUser({
+          id: String(Date.now()), name: data.name,
+          email: data.email.toLowerCase(), passwordHash: hashedPassword,
+          createdAt: new Date().toISOString()
+        });
+        user.validate();
+        return user;
+      }
+      _hashPassword(p) { return btoa(p + '_unimercs_salt'); }
+    }
+    class JaverianaUserFactory extends UserFactory {
+      createUser(data) {
+        if (!data.email.endsWith('@javeriana.edu.co'))
+          throw new Error('Solo se permiten correos @javeriana.edu.co');
+        return new StudentUser(data);
+      }
+    }
+
+    /* ── PATRÓN 2: FACADE ── */
+    class UserStorageService {
+      static USERS_KEY = 'unimercs_users';
+      getAll() { return JSON.parse(localStorage.getItem(UserStorageService.USERS_KEY) || '[]'); }
+      findByEmail(email) { return this.getAll().find(u => u.email === email.toLowerCase()) || null; }
+      save(user) {
+        const all = this.getAll();
+        all.push(user);
+        localStorage.setItem(UserStorageService.USERS_KEY, JSON.stringify(all));
+      }
+    }
+    class SessionManager {
+      static SESSION_KEY = 'unimercs_current_user';
+      createSession(user, remember = false) {
+        const s = { email: user.email, name: user.name, loginTime: new Date().toISOString(), remember };
+        localStorage.setItem(SessionManager.SESSION_KEY, JSON.stringify(s));
+        return s;
+      }
+      destroySession() { localStorage.removeItem(SessionManager.SESSION_KEY); }
+      getSession() { const r = localStorage.getItem(SessionManager.SESSION_KEY); return r ? JSON.parse(r) : null; }
+    }
+    class AuthFacade {
+      constructor() {
+        this._storage = new UserStorageService();
+        this._session = new SessionManager();
+      }
+      register(data) {
+        if (this._storage.findByEmail(data.email))
+          throw new Error('Ya existe una cuenta con este correo electrónico');
+        const factory = new JaverianaUserFactory();
+        const user = factory.register(data);
+        this._storage.save(user);
+        return this._session.createSession(user, true);
+      }
+      isAuthenticated() { return this._session.getSession() !== null; }
+    }
+  </script>
 
   <script>
     (function() {
@@ -653,41 +735,11 @@
 
         setTimeout(() => {
           try {
-
-            const usersData = localStorage.getItem(USERS_KEY);
-            let users = [];
-            
-            if (usersData) {
-              users = JSON.parse(usersData);
-            }
-
-            const existingUser = users.find(u => u.email === email);
-            if (existingUser) {
-              showError('Ya existe una cuenta con este correo electrónico');
-              submitBtn.disabled = false;
-              submitBtn.classList.remove('loading');
-              return;
-            }
-
-        
-            const newUser = {
-              id: String(Date.now()),
-              name: name,
-              email: email,
-              password: password,
-              createdAt: new Date().toISOString()
-            };
-
-            users.push(newUser);
-            localStorage.setItem(USERS_KEY, JSON.stringify(users));
-
-            const sessionData = {
-              email: newUser.email,
-              name: newUser.name,
-              loginTime: new Date().toISOString(),
-              remember: true
-            };
-            localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(sessionData));
+            // ── USO DE AUTHFACADE (Facade) + JAVERIANAUSER FACTORY (Factory Method) ──
+            // AuthFacade orquesta: validar email único → JaverianaUserFactory.register()
+            // → StudentUser.validate() → guardar en storage → crear sesión
+            const auth = new AuthFacade();
+            auth.register({ name, email, password });
 
             showSuccess(`¡Cuenta creada exitosamente! Bienvenido, ${name}!`);
             submitBtn.textContent = '✓ Cuenta creada!';
@@ -699,7 +751,8 @@
 
           } catch (err) {
             console.error('Registration error:', err);
-            showError('Error al crear la cuenta. Por favor intenta de nuevo.');
+            // Muestra el mensaje exacto del patrón (ej: "Solo se permiten correos @javeriana.edu.co")
+            showError(err.message || 'Error al crear la cuenta. Por favor intenta de nuevo.');
             submitBtn.disabled = false;
             submitBtn.classList.remove('loading');
           }

@@ -551,7 +551,7 @@
 <body>
     <header class="site-header">
     <div class="container header-inner">
-      <a class="brand" href="prueba.html">
+      <a class="brand" href="index.html">
         <img src="https://raw.githubusercontent.com/puj-course/FIS_2610_3513_G6/main/assets/UnimercsLogo.png" alt="UNIMERCS" class="brand-logo" />
         UniMercs
       </a>
@@ -566,9 +566,9 @@
       </div>
 
       <nav class="nav-desktop" aria-label="Primary">
-        <a href="prueba.html" class="nav-link">Inicio</a>
-        <a href="pruebaExplorar.html" class="nav-link">Explorar</a>
-        <a href="pruebaCrearPub.html" class="nav-link active">Vender</a>
+        <a href="index.html" class="nav-link">Inicio</a>
+        <a href="index.html" class="nav-link">Explorar</a>
+        <a href="post.html" class="nav-link active">Vender</a>
         <a href="#about" class="nav-link">Sobre</a>
       </nav>
 
@@ -582,8 +582,8 @@
             <svg class="icon" viewBox="0 0 24 24"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm0 2c-4 0-6 2-6 4v1h12v-1c0-2-2-4-6-4z" fill="currentColor"/></svg>
           </button>
           <div class="dropdown-menu" id="profile-dropdown-menu" hidden>
-            <a href="BetaRegister.html" class="dropdown-item">Registrar</a>
-            <a href="betalogin.html" class="dropdown-item">Iniciar sesion</a>
+            <a href="register.html" class="dropdown-item">Registrar</a>
+            <a href="login.html" class="dropdown-item">Iniciar sesion</a>
           </div>
         </div>
 
@@ -606,11 +606,11 @@
         </div>
 
         <nav class="mobile-nav" aria-label="Mobile Primary">
-          <a href="prueba.html" class="mobile-link">Inicio</a>
-          <a href="pruebaExplorar.html" class="mobile-link">Explorar</a>
-          <a href="pruebaCrearPub.html" class="mobile-link active">Vender</a>
-          <a href="BetaRegister.html" class="mobile-link">Registrar</a>
-          <a href="betalogin.html" class="mobile-link">Iniciar sesion</a>
+          <a href="index.html" class="mobile-link">Inicio</a>
+          <a href="index.html" class="mobile-link">Explorar</a>
+          <a href="post.html" class="mobile-link active">Vender</a>
+          <a href="register.html" class="mobile-link">Registrar</a>
+          <a href="login.html" class="mobile-link">Iniciar sesion</a>
         </nav>
       </div>
     </div>
@@ -696,7 +696,7 @@
       <div id="form-error" class="error-message" role="alert" aria-live="assertive"></div>
 
       <div class="form-actions">
-        <a href="#home" class="btn-cancel">Cancelar</a>
+        <a href="index.html" class="btn-cancel">Cancelar</a>
         <button id="submit-btn" type="submit" class="btn-submit">
           Crear Publicación
         </button>
@@ -765,9 +765,78 @@
 
   <div id="toast" class="toast" aria-live="polite" hidden></div>
 
+  <!-- =====================================================
+       PATRONES GoF — UniMercs
+       3. Observer: PostEventBus + ExploreUpdater + ProfileUpdater + NotificationObserver
+       ===================================================== -->
+  <script>
+    /* ── PATRÓN: OBSERVER ── */
+    class PostObserver {
+      update(post) { throw new Error('Implementar update()'); }
+    }
+    class PostEventBus {
+      constructor() { this._observers = []; }
+      subscribe(observer) {
+        if (!(observer instanceof PostObserver)) throw new TypeError('Debe implementar PostObserver');
+        this._observers.push(observer);
+      }
+      unsubscribe(observer) { this._observers = this._observers.filter(o => o !== observer); }
+      notify(post) { this._observers.forEach(o => o.update(post)); }
+    }
+    class ExploreUpdater extends PostObserver {
+      update(post) {
+        const posts = JSON.parse(localStorage.getItem('mh_user_posts') || '[]');
+        posts.unshift(post);
+        localStorage.setItem('mh_user_posts', JSON.stringify(posts));
+        localStorage.setItem('mh_user_posts:updatedAt', String(Date.now()));
+        console.log(`[ExploreUpdater] "${post.title}" agregado al feed`);
+      }
+    }
+    class ProfileUpdater extends PostObserver {
+      update(post) {
+        const session = JSON.parse(localStorage.getItem('unimercs_current_user') || 'null');
+        if (!session) return;
+        const users = JSON.parse(localStorage.getItem('unimercs_users') || '[]');
+        const idx = users.findIndex(u => u.email === session.email);
+        if (idx >= 0) {
+          if (!users[idx].profile) users[idx].profile = { posts: [], favorites: [], rating: 0 };
+          users[idx].profile.posts.push(post.id);
+          localStorage.setItem('unimercs_users', JSON.stringify(users));
+        }
+        console.log(`[ProfileUpdater] Perfil de ${session.name} actualizado`);
+      }
+    }
+    class NotificationObserver extends PostObserver {
+      update(post) {
+        const event = new CustomEvent('unimercs:new-post', { detail: post });
+        window.dispatchEvent(event);
+        console.log(`[NotificationObserver] Evento disparado para "${post.title}"`);
+      }
+    }
+    /* Bus global con los 3 observadores suscritos */
+    const postBus = new PostEventBus();
+    postBus.subscribe(new ExploreUpdater());
+    postBus.subscribe(new ProfileUpdater());
+    postBus.subscribe(new NotificationObserver());
+  </script>
+
   <script>
     (function () {
   const STORAGE_KEY = 'mh_user_posts';
+
+  // ── GUARD DE AUTENTICACIÓN ──
+  // Solo usuarios con sesión activa pueden crear publicaciones
+  const _session = JSON.parse(localStorage.getItem('unimercs_current_user') || 'null');
+  if (!_session) {
+    alert('Debes iniciar sesión para crear una publicación');
+    window.location.href = 'login.html';
+  }
+
+  // Pre-llenar el nombre del vendedor con el nombre de la sesión
+  window.addEventListener('DOMContentLoaded', () => {
+    const usernameInput = document.getElementById('product-username');
+    if (usernameInput && _session) usernameInput.value = _session.name;
+  });
 
   
   const toast = document.getElementById('toast');
@@ -882,6 +951,10 @@
 
     try {
       const imageDataUrl = await readFileAsDataURL(file);
+
+      // Leer email del vendedor desde la sesión activa
+      const session = JSON.parse(localStorage.getItem('unimercs_current_user') || 'null');
+
       const newPost = {
         id: String(Date.now()),
         title: title,
@@ -889,28 +962,17 @@
         state: state,
         price: Number(priceNum),
         username: username,
+        seller: session ? session.email : username,
         imageDataUrl: imageDataUrl,
         createdAt: new Date().toISOString()
       };
 
-      let posts = [];
-      const storedPosts = localStorage.getItem(STORAGE_KEY);
-      if (storedPosts) {
-        try {
-          posts = JSON.parse(storedPosts);
-          if (!Array.isArray(posts)) posts = [];
-        } catch (err) {
-          posts = [];
-        }
-      }
-      
-      posts.unshift(newPost);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(posts));
-
-
-      try {
-        localStorage.setItem(`${STORAGE_KEY}:updatedAt`, String(Date.now()));
-      } catch (err) {}
+      // ── USO DEL PATRÓN OBSERVER ──
+      // postBus.notify() dispara en cascada:
+      //   1. ExploreUpdater  → guarda en mh_user_posts (feed principal)
+      //   2. ProfileUpdater  → agrega el id al perfil del vendedor en unimercs_users
+      //   3. NotificationObserver → lanza evento DOM unimercs:new-post
+      postBus.notify(newPost);
 
       showToast('✓ Publicación creada exitosamente!');
 
@@ -920,7 +982,7 @@
       setTimeout(() => {
         showToast('Redirigiendo al inicio...');
         setTimeout(() => {
-          window.location.href = 'prueba.html';
+          window.location.href = 'index.html';
         }, 800);
       }, 1500);
       
