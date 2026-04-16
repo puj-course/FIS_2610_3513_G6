@@ -177,7 +177,7 @@ body {
   .owner-actions { opacity: 1; transform: translateY(0); }
 }
 
-    </style>
+  </style>
 </head>
 <body>
   <header class="site-header">
@@ -187,7 +187,15 @@ body {
         UniMercs
       </a>
 
-
+      
+      <div class="search-desktop" role="search">
+        <label for="global-search" class="sr-only">Buscar por título...</label>
+        <div class="search-field">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 21l-4.35-4.35M10.5 18a7.5 7.5 0 1 1 0-15 7.5 7.5 0 0 1 0 15z" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <input id="global-search" placeholder="Busca productos por título..." />
+          <button class="btn btn-cta" id="search-desktop-btn">Buscar</button>
+        </div>
+      </div>
 
       <nav class="nav-desktop" aria-label="Primary">
         <a href="index.html" class="nav-link">Inicio</a>
@@ -227,18 +235,26 @@ body {
         <p>Encuentra las mejores ofertas de tus compañeros de la Universidad Javeriana</p>
       </div>
 
-      
-
+      <!-- 5 -->
+      <div class="filters-container">
+        <div class="category-filters" id="category-filters">
+          <button class="cat-btn active" data-category="all">Todos</button>
+          <button class="cat-btn" data-category="electronics">Electrónicos</button>
+          <button class="cat-btn" data-category="computers">Computadoras</button>
+          <button class="cat-btn" data-category="fashion">Moda</button>
+          <button class="cat-btn" data-category="home">Casa</button>
+          <button class="cat-btn" data-category="books">Libros</button>
+          <button class="cat-btn" data-category="games">Videojuegos</button>
+        </div>
+      </div>
 
       <div class="results-info" aria-live="polite">
         Mostrando <span id="results-count">0</span> resultados
       </div>
 
       <div class="products-grid" id="products-grid">
-       
       </div>
       
-
       <div id="empty-state" class="empty-state" hidden>
         <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
           <circle cx="11" cy="11" r="8"></circle>
@@ -316,8 +332,8 @@ body {
 
   <div id="toast" class="toast" aria-live="polite" hidden></div>
 
-  <script >
-    (function() {
+  <script>
+(function() {
   const CURRENT_USER_KEY = 'unimercs_current_user';
   const EXPLORE_STORAGE_KEY = 'unimercs_explore_products';
   const POSTS_STORAGE_KEY = 'mh_user_posts';
@@ -339,6 +355,7 @@ body {
   const registerLink = document.getElementById('register-link');
   const logoutBtn = document.getElementById('logout-btn');
 
+
   function loadSession() {
     try {
       const stored = localStorage.getItem(CURRENT_USER_KEY);
@@ -351,7 +368,6 @@ body {
           logoutBtn.style.display = 'block';
         }
       } else {
-    
         const session2 = localStorage.getItem('session');
         if (session2) {
           currentSession = JSON.parse(session2);
@@ -375,6 +391,7 @@ body {
     localStorage.removeItem('session');
     window.location.reload();
   });
+
 
   const profileBtn = document.getElementById('profile-btn');
   const profileMenu = document.getElementById('profile-dropdown-menu');
@@ -433,12 +450,14 @@ body {
     return name.substring(0, 2).toUpperCase();
   }
 
+
   function loadProducts() {
     try {
       const stored = localStorage.getItem(EXPLORE_STORAGE_KEY);
       if (stored) {
         allProducts = JSON.parse(stored);
       } else {
+
         allProducts = [
           {
             id: '1001',
@@ -529,7 +548,6 @@ body {
   }
 
   function attachCardEvents() {
-
     document.querySelectorAll('.action-delete').forEach(btn => {
       btn.addEventListener('click', (e) => {
         e.preventDefault();
@@ -547,10 +565,54 @@ body {
     });
   }
 
+  function applyFilters() {
+    filteredProducts = allProducts.filter(p => {
+      const matchSearch = p.title.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchCategory = activeCategory === 'all' || p.category === activeCategory;
+      return matchSearch && matchCategory;
+    });
+    renderProducts();
+  }
+
+  const searchInput = document.getElementById('global-search');
+  const searchBtn = document.getElementById('search-desktop-btn');
+
+  searchInput?.addEventListener('input', (e) => {
+    searchTerm = e.target.value.trim();
+    applyFilters();
+  });
+
+  searchBtn?.addEventListener('click', () => {
+    searchTerm = searchInput.value.trim();
+    applyFilters();
+  });
+
+  const categoryContainer = document.getElementById('category-filters');
+  const catBtns = document.querySelectorAll('.cat-btn');
+  
+  categoryContainer?.addEventListener('click', (e) => {
+    if (e.target.classList.contains('cat-btn')) {
+      catBtns.forEach(b => b.classList.remove('active'));
+      e.target.classList.add('active');
+      activeCategory = e.target.getAttribute('data-category');
+      applyFilters();
+    }
+  });
+
+  document.getElementById('clear-filters-btn')?.addEventListener('click', () => {
+    searchTerm = '';
+    searchInput.value = '';
+    activeCategory = 'all';
+    catBtns.forEach(b => b.classList.remove('active'));
+    document.querySelector('[data-category="all"]').classList.add('active');
+    applyFilters();
+  });
+
 
   // 4
 
   function deleteFromStorage(id) {
+
     allProducts = allProducts.filter(p => String(p.id) !== String(id));
     localStorage.setItem(EXPLORE_STORAGE_KEY, JSON.stringify(allProducts));
     
@@ -570,7 +632,7 @@ body {
   function confirmDelete(id) {
     if (confirm("¿Estás seguro de que deseas eliminar tu publicación? Esta acción no se puede deshacer.")) {
       deleteFromStorage(id);
-      applyFilters(); 
+      applyFilters(); // Re-render
       showToast("Publicación eliminada correctamente.");
     }
   }
@@ -591,6 +653,7 @@ body {
   function openEditModal(id) {
     const product = allProducts.find(p => String(p.id) === String(id));
     if (!product) return;
+
 
     editId.value = product.id;
     editTitle.value = product.title || '';
@@ -624,7 +687,6 @@ body {
       return;
     }
 
-
     const prodIdx = allProducts.findIndex(p => String(p.id) === String(id));
     if (prodIdx > -1) {
       allProducts[prodIdx] = {
@@ -636,7 +698,6 @@ body {
       };
       localStorage.setItem(EXPLORE_STORAGE_KEY, JSON.stringify(allProducts));
     }
-
 
     try {
       const rawUserPosts = localStorage.getItem(POSTS_STORAGE_KEY);
@@ -671,6 +732,7 @@ body {
   init();
 
 })();
+
 
   </script>
 </body>
