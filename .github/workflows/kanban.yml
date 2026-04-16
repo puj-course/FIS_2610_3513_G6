@@ -3,7 +3,7 @@ name: Kanban - Automatización del tablero kanban del proyecto UniMercs :)
 #este pipeline automatiza todo el movimiento de issues en el tablero kanban del github en projects
 #cuando se abre un PR que viene con referencia de "closes", tal issue pasa a "en progreso".
 #cuando el PR se le hace merge, tal issue pasa a done. Nos ayuda a eliminar un trabajo manual cansador y matener el tablero siempre al día.
-
+#.
 on:
   pull_request:
     types: [opened, closed]       # Cuando se abre o cierra un PR
