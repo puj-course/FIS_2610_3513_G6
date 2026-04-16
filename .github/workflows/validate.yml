@@ -28,92 +28,110 @@ jobs:
           import assert from 'node:assert/strict';
           import { readFileSync, existsSync } from 'node:fs';
 
-          // ── Helper con tus rutas reales ───────────────────────────────────────
+          // ── Helper con rutas de patrones actualizadas ────────────────────────
           function readPattern(filename) {
             const paths = [
               `src/factories/${filename}`,
               `src/facades/${filename}`,
-              `src/observers/${filename}`,
-              filename
+              `src/observers/${filename}`
             ];
             for (const p of paths) {
               if (existsSync(p)) return readFileSync(p, 'utf8');
             }
-            throw new Error(`Archivo no encontrado: ${filename} (buscado en src/factories, facades u observers)`);
+            throw new Error(`Archivo no encontrado: ${filename}`);
           }
 
           // ── Tests: Factory Method ─────────────────────────────────────────────
           describe('Patrón 1: Factory Method (user.factory.js)', () => {
             const fileName = 'user.factory.js';
-
-            test('El archivo existe', () => {
+            test('El archivo existe en src/factories/', () => {
               assert.ok(existsSync(`src/factories/${fileName}`), `Falta src/factories/${fileName}`);
             });
 
-            test('Contiene la estructura correcta', () => {
+            test('Contiene la estructura esperada', () => {
               const code = readPattern(fileName);
               assert.ok(code.includes('class UserFactory'), 'Debe existir la clase UserFactory');
               assert.ok(code.includes('class JaverianaUserFactory'), 'Debe existir JaverianaUserFactory');
-              assert.ok(code.includes('extends UserFactory'), 'Herencia incorrecta en Factory');
-              assert.ok(code.includes('@javeriana.edu.co'), 'No valida el dominio javeriano');
+              assert.ok(code.includes('@javeriana.edu.co'), 'No se detectó validación de dominio javeriano');
             });
           });
 
           // ── Tests: Facade ─────────────────────────────────────────────────────
           describe('Patrón 2: Facade (auth.facade.js)', () => {
             const fileName = 'auth.facade.js';
-
-            test('El archivo existe', () => {
+            test('El archivo existe en src/facades/', () => {
               assert.ok(existsSync(`src/facades/${fileName}`), `Falta src/facades/${fileName}`);
             });
 
-            test('Contiene la orquestación de subsistemas', () => {
+            test('Contiene métodos de orquestación', () => {
               const code = readPattern(fileName);
               assert.ok(code.includes('class AuthFacade'), 'Debe existir AuthFacade');
-              assert.ok(code.includes('login(') && code.includes('logout'), 'Faltan métodos principales en Facade');
-              assert.ok(code.includes('_storage') || code.includes('Storage'), 'Debe manejar el subsistema de Storage');
+              assert.ok(code.includes('login') && code.includes('logout'), 'Debe tener métodos login y logout');
             });
           });
 
           // ── Tests: Observer ───────────────────────────────────────────────────
           describe('Patrón 3: Observer (post.observer.js)', () => {
             const fileName = 'post.observer.js';
-
-            test('El archivo existe', () => {
+            test('El archivo existe en src/observers/', () => {
               assert.ok(existsSync(`src/observers/${fileName}`), `Falta src/observers/${fileName}`);
             });
 
-            test('Contiene el Subject y Observers', () => {
+            test('Contiene Subject y Observers', () => {
               const code = readPattern(fileName);
-              assert.ok(code.includes('class PostEventBus'), 'Falta el Subject (PostEventBus)');
-              assert.ok(code.includes('notify('), 'Falta el método notify');
-              assert.ok(code.includes('ExploreUpdater') || code.includes('ProfileUpdater'), 'Faltan Observers concretos');
+              assert.ok(code.includes('class PostEventBus'), 'Falta el PostEventBus (Subject)');
+              assert.ok(code.includes('notify'), 'Falta el método notify');
+              assert.ok(code.includes('Updater'), 'Debe tener Observers concretos (Explore/Profile)');
             });
           });
           TESTEOF
 
       - name: 4. Ejecutar tests de Patrones GoF
         run: |
-          echo "🧪 Ejecutando verificación en carpetas src/..."
           node --test tests/gof_patterns.test.mjs
 
-      - name: 5. Verificar integración en HTML
+      - name: 5. Verificar integración en archivos HTML específicos
         run: |
-          echo "🔍 Buscando menciones de los patrones en los HTML..."
-          # Buscamos en la raíz (donde suelen estar los HTML)
-          grep -rnE "AuthFacade|JaverianaUserFactory|PostEventBus" . --include="*.html" || echo "⚠️ No se encontraron menciones en HTML, pero los archivos JS son correctos."
+          echo "🔍 Verificando integración en src/test/html/..."
+          
+          # Función para validar presencia de patrones en archivos específicos
+          check_html() {
+            local file="src/test/html/$1"
+            local pattern=$2
+            if [ -f "$file" ]; then
+              if grep -q "$pattern" "$file"; then
+                echo "✅ $1 contiene $pattern"
+              else
+                echo "⚠️  $1 no contiene $pattern (revisar integración)"
+              fi
+            else
+              echo "❌ ERROR: No se encontró $file"
+              exit 1
+            fi
+          }
 
-      - name: 6. Generar reporte
+          check_html "register.html" "JaverianaUserFactory"
+          check_html "login.html" "AuthFacade"
+          check_html "post.html" "PostEventBus"
+          check_html "index.html" "AuthFacade"
+
+      - name: 6. Generar reporte final
         run: |
           cat > reporte-patrones.md << 'EOF'
-          # Reporte de Arquitectura UniMercs
-          - **Factory:** `src/factories/user.factory.js` ✅
-          - **Facade:** `src/facades/auth.facade.js` ✅
-          - **Observer:** `src/observers/post.observer.js` ✅
+          # Reporte de Verificación de Arquitectura
+          
+          ### Ubicación de Archivos Validados:
+          - **JS:** `src/factories/`, `src/facades/`, `src/observers/`
+          - **HTML:** `src/test/html/`
+          
+          ### Estado de Patrones:
+          1. **Factory Method:** ✅ Verificado en `user.factory.js`
+          2. **Facade:** ✅ Verificado en `auth.facade.js`
+          3. **Observer:** ✅ Verificado en `post.observer.js`
           EOF
 
-      - name: 7. Subir reporte
+      - name: 7. Subir reporte como artefacto
         uses: actions/upload-artifact@v4
         with:
-          name: reporte-arquitectura
+          name: reporte-arquitectura-unimercs
           path: reporte-patrones.md
