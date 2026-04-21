@@ -1,5 +1,5 @@
 name: Validar uso de patrones de diseño
-
+#edit 2
 on:
   push:
   pull_request:
@@ -9,7 +9,6 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Clona el repositorio en el runner
       - name: Clonar repositorio
         uses: actions/checkout@v3
 
