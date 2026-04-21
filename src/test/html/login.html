@@ -361,109 +361,140 @@
   <div id="toast" class="toast" aria-live="polite" hidden></div>
 
   <script>
-  class SessionManager {
-    static SESSION_KEY = 'unimercs_current_user';
-    static TOKEN_KEY   = 'unimercs_token';
-    createSession(user, token) {
-      localStorage.setItem(SessionManager.TOKEN_KEY, token);
-      localStorage.setItem(SessionManager.SESSION_KEY, JSON.stringify(user));
+    /* ====================== PATRÓN FACADE (completo) ====================== */
+    class UserStorage {
+      getAll() {
+        return JSON.parse(localStorage.getItem('unimercs_users') || '[]');
+      }
+      findByEmail(email) {
+        return this.getAll().find(u => u.email === email.toLowerCase()) || null;
+      }
+      save(user) {
+        const all = this.getAll();
+        all.push(user);
+        localStorage.setItem('unimercs_users', JSON.stringify(all));
+      }
     }
-    destroySession() {
-      localStorage.removeItem(SessionManager.SESSION_KEY);
-      localStorage.removeItem(SessionManager.TOKEN_KEY);
+
+    class CredentialValidator {
+      verify(user, password) {
+        if (!user) throw new Error('No existe una cuenta con ese correo');
+        const hash = btoa(password + '_salt');
+        const legacyMatch = user.password === password;
+        const hashMatch = user.passwordHash === hash;
+        if (!legacyMatch && !hashMatch)
+          throw new Error('Contraseña incorrecta');
+      }
     }
-    getSession()     { const r = localStorage.getItem(SessionManager.SESSION_KEY); return r ? JSON.parse(r) : null; }
-    isAuthenticated(){ return this.getSession() !== null; }
-  }
-  class AuthFacade {
-    constructor() { this._session = new SessionManager(); }
-    async login(email, password) {
-      const res  = await fetch('http://localhost:5000/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Error al iniciar sesión');
-      this._session.createSession(data.user, data.token);
-      return data.user;
+
+    class SessionManager {
+      static SESSION_KEY = 'unimercs_current_user';
+      static TOKEN_KEY   = 'unimercs_token';
+      createSession(user, token) {
+        localStorage.setItem(SessionManager.TOKEN_KEY, token);
+        localStorage.setItem(SessionManager.SESSION_KEY, JSON.stringify(user));
+      }
+      destroySession() {
+        localStorage.removeItem(SessionManager.SESSION_KEY);
+        localStorage.removeItem(SessionManager.TOKEN_KEY);
+      }
+      getSession()     { const r = localStorage.getItem(SessionManager.SESSION_KEY); return r ? JSON.parse(r) : null; }
+      isAuthenticated(){ return this.getSession() !== null; }
     }
-    logout()          { this._session.destroySession(); }
-    getCurrentUser()  { return this._session.getSession(); }
-    isAuthenticated() { return this._session.isAuthenticated(); }
-  }
+
+    class AuthFacade {
+      constructor() {
+        this.storage = new UserStorage();
+        this.validator = new CredentialValidator();
+        this.session = new SessionManager();
+      }
+      async login(email, password) {
+        const res  = await fetch('http://localhost:5000/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || 'Error al iniciar sesión');
+        this.session.createSession(data.user, data.token);
+        return data.user;
+      }
+      logout()          { this.session.destroySession(); }
+      getCurrentUser()  { return this.session.getSession(); }
+      isAuthenticated() { return this.session.isAuthenticated(); }
+    }
   </script>
 
   <script>
-  (function() {
-    const toast = document.getElementById('toast');
-    function showToast(msg) {
-      if (!toast) return;
-      toast.textContent = msg;
-      toast.hidden = false;
-      toast.classList.add('show');
-      setTimeout(() => { toast.classList.remove('show'); setTimeout(() => toast.hidden = true, 300); }, 2500);
-    }
-
-    const passwordInput = document.getElementById('password');
-    const toggleBtn     = document.getElementById('toggle-password');
-    toggleBtn?.addEventListener('click', () => {
-      const t = passwordInput.type === 'password' ? 'text' : 'password';
-      passwordInput.type = t;
-      toggleBtn.innerHTML = t === 'password'
-        ? '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>'
-        : '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>';
-    });
-
-    const errorEl   = document.getElementById('error-message');
-    const successEl = document.getElementById('success-message');
-
-    function showError(msg)   { errorEl.textContent = msg;   errorEl.classList.add('show');   successEl.classList.remove('show'); }
-    function showSuccess(msg) { successEl.textContent = msg; successEl.classList.add('show'); errorEl.classList.remove('show'); }
-    function hideMessages()   { errorEl.classList.remove('show'); successEl.classList.remove('show'); }
-
-    const auth = new AuthFacade();
-    if (auth.isAuthenticated()) {
-      showSuccess(`Ya tienes sesión activa. Redirigiendo...`);
-      setTimeout(() => window.location.href = 'index.html', 1200);
-    }
-
-    const loginForm = document.getElementById('login-form');
-    const emailInput = document.getElementById('email');
-    const submitBtn  = document.getElementById('submit-btn');
-
-    loginForm?.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      hideMessages();
-
-      const email    = emailInput.value.trim().toLowerCase();
-      const password = passwordInput.value;
-
-      if (!email || !email.includes('@')) { showError('Por favor ingresa un correo electrónico válido'); return; }
-      if (!password)                       { showError('Por favor ingresa tu contraseña'); return; }
-
-      submitBtn.disabled = true;
-      submitBtn.classList.add('loading');
-
-      try {
-        const user = await auth.login(email, password);
-        showSuccess(`¡Bienvenido de nuevo, ${user.name}!`);
-        submitBtn.textContent = '✓ Iniciando sesión...';
-        submitBtn.style.background = 'linear-gradient(90deg,#10b981,#059669)';
-        setTimeout(() => window.location.href = 'index.html', 1200);
-      } catch (err) {
-        showError(err.message || 'Error al iniciar sesión. Por favor intenta de nuevo.');
-        submitBtn.disabled = false;
-        submitBtn.classList.remove('loading');
-        submitBtn.textContent = 'Iniciar Sesión';
+    (function() {
+      const toast = document.getElementById('toast');
+      function showToast(msg) {
+        if (!toast) return;
+        toast.textContent = msg;
+        toast.hidden = false;
+        toast.classList.add('show');
+        setTimeout(() => { toast.classList.remove('show'); setTimeout(() => toast.hidden = true, 300); }, 2500);
       }
-    });
 
-    document.querySelector('.forgot-link')?.addEventListener('click', (e) => {
-      e.preventDefault();
-      showToast('Función de recuperación de contraseña próximamente');
-    });
-  })();
+      const passwordInput = document.getElementById('password');
+      const toggleBtn     = document.getElementById('toggle-password');
+      toggleBtn?.addEventListener('click', () => {
+        const t = passwordInput.type === 'password' ? 'text' : 'password';
+        passwordInput.type = t;
+        toggleBtn.innerHTML = t === 'password'
+          ? '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>'
+          : '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>';
+      });
+
+      const errorEl   = document.getElementById('error-message');
+      const successEl = document.getElementById('success-message');
+
+      function showError(msg)   { errorEl.textContent = msg;   errorEl.classList.add('show');   successEl.classList.remove('show'); }
+      function showSuccess(msg) { successEl.textContent = msg; successEl.classList.add('show'); errorEl.classList.remove('show'); }
+      function hideMessages()   { errorEl.classList.remove('show'); successEl.classList.remove('show'); }
+
+      const auth = new AuthFacade();
+      if (auth.isAuthenticated()) {
+        showSuccess(`Ya tienes sesión activa. Redirigiendo...`);
+        setTimeout(() => window.location.href = 'index.html', 1200);
+      }
+
+      const loginForm = document.getElementById('login-form');
+      const emailInput = document.getElementById('email');
+      const submitBtn  = document.getElementById('submit-btn');
+
+      loginForm?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        hideMessages();
+
+        const email    = emailInput.value.trim().toLowerCase();
+        const password = passwordInput.value;
+
+        if (!email || !email.includes('@')) { showError('Por favor ingresa un correo electrónico válido'); return; }
+        if (!password)                       { showError('Por favor ingresa tu contraseña'); return; }
+
+        submitBtn.disabled = true;
+        submitBtn.classList.add('loading');
+
+        try {
+          const user = await auth.login(email, password);
+          showSuccess(`¡Bienvenido de nuevo, ${user.name}!`);
+          submitBtn.textContent = '✓ Iniciando sesión...';
+          submitBtn.style.background = 'linear-gradient(90deg,#10b981,#059669)';
+          setTimeout(() => window.location.href = 'index.html', 1200);
+        } catch (err) {
+          showError(err.message || 'Error al iniciar sesión. Por favor intenta de nuevo.');
+          submitBtn.disabled = false;
+          submitBtn.classList.remove('loading');
+          submitBtn.textContent = 'Iniciar Sesión';
+        }
+      });
+
+      document.querySelector('.forgot-link')?.addEventListener('click', (e) => {
+        e.preventDefault();
+        showToast('Función de recuperación de contraseña próximamente');
+      });
+    })();
   </script>
 </body>
 </html>

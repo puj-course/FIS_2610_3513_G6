@@ -250,162 +250,180 @@
   <div id="toast" class="toast" aria-live="polite" hidden></div>
 
   <script>
-  class User {
-    constructor({ name, email, role }) {
-      this.name = name; this.email = email; this.role = role;
+    /* ====================== PATRÓN FACTORY METHOD ====================== */
+    class User {
+      constructor({ id, name, email, passwordHash, role, createdAt }) {
+        this.id = id;
+        this.name = name;
+        this.email = email;
+        this.passwordHash = passwordHash;
+        this.role = role;
+        this.profile = { posts: [], favorites: [] };
+        this.createdAt = createdAt;
+      }
     }
-    validate() { throw new Error('Implementar validate()'); }
-  }
-  class StudentUser extends User {
-    constructor(data) { super({ ...data, role: 'student' }); }
-    validate() {
-      if (!this.email.endsWith('@javeriana.edu.co'))
-        throw new Error('Correo debe ser @javeriana.edu.co');
-    }
-  }
-  class UserFactory {
-    createUser(data) { throw new Error('Implementar en subclase'); }
-    build(data) {
-      const user = this.createUser(data);
-      user.validate();
-      return user;
-    }
-  }
-  class JaverianaUserFactory extends UserFactory {
-    createUser(data) {
-      if (!data.email.endsWith('@javeriana.edu.co'))
-        throw new Error('Solo se permiten correos @javeriana.edu.co');
-      return new StudentUser(data);
-    }
-  }
 
-  class SessionManager {
-    static SESSION_KEY = 'unimercs_current_user';
-    static TOKEN_KEY   = 'unimercs_token';
-    createSession(user, token) {
-      localStorage.setItem(SessionManager.TOKEN_KEY, token);
-      localStorage.setItem(SessionManager.SESSION_KEY, JSON.stringify(user));
+    class StudentUser extends User {
+      constructor(data) {
+        super({ ...data, role: 'student' });
+      }
+      validate() {
+        if (!this.email.endsWith('@javeriana.edu.co'))
+          throw new Error('Solo se permiten correos @javeriana.edu.co');
+      }
     }
-    isAuthenticated() { return localStorage.getItem(SessionManager.SESSION_KEY) !== null; }
-  }
-  class AuthFacade {
-    constructor() {
-      this._session = new SessionManager();
-      this._factory = new JaverianaUserFactory();
-    }
-    async register(data) {
-      this._factory.build({ name: data.name, email: data.email });
 
-      const res  = await fetch('http://localhost:5000/api/auth/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: data.name, email: data.email, password: data.password })
-      });
-      const body = await res.json();
-      if (!res.ok) throw new Error(body.message || 'Error al registrar');
-      this._session.createSession(body.user, body.token);
-      return body.user;
+    class UserFactory {
+      createUser(data) {
+        throw new Error('Implementar en subclase');
+      }
+      build(data) {
+        const user = this.createUser({
+          id: String(Date.now()),
+          name: data.name,
+          email: data.email.toLowerCase(),
+          passwordHash: btoa(data.password + '_salt'),
+          createdAt: new Date().toISOString()
+        });
+        user.validate();
+        return user;
+      }
     }
-    isAuthenticated() { return this._session.isAuthenticated(); }
-  }
+
+    class JaverianaUserFactory extends UserFactory {
+      createUser(data) {
+        if (!data.email.endsWith('@javeriana.edu.co'))
+          throw new Error('Solo se permiten correos @javeriana.edu.co');
+        return new StudentUser(data);
+      }
+    }
+
+    /* ====================== PATRÓN FACADE ====================== */
+    class SessionManager {
+      static SESSION_KEY = 'unimercs_current_user';
+      static TOKEN_KEY   = 'unimercs_token';
+      createSession(user, token) {
+        localStorage.setItem(SessionManager.TOKEN_KEY, token);
+        localStorage.setItem(SessionManager.SESSION_KEY, JSON.stringify(user));
+      }
+      isAuthenticated() { return localStorage.getItem(SessionManager.SESSION_KEY) !== null; }
+    }
+
+    class AuthFacade {
+      constructor() {
+        this._factory = new JaverianaUserFactory();
+      }
+      async register(data) {
+        this._factory.build({ name: data.name, email: data.email, password: data.password });
+        const res  = await fetch('http://localhost:5000/api/auth/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: data.name, email: data.email, password: data.password })
+        });
+        const body = await res.json();
+        if (!res.ok) throw new Error(body.message || 'Error al registrar');
+        new SessionManager().createSession(body.user, body.token);
+        return body.user;
+      }
+    }
   </script>
 
   <script>
-  (function() {
-    const toast = document.getElementById('toast');
-    function showToast(msg) {
-      if (!toast) return;
-      toast.textContent = msg; toast.hidden = false; toast.classList.add('show');
-      setTimeout(() => { toast.classList.remove('show'); setTimeout(() => toast.hidden = true, 300); }, 2500);
-    }
-
-    function setupToggle(btnId, inputEl) {
-      const btn = document.getElementById(btnId);
-      btn?.addEventListener('click', () => {
-        const t = inputEl.type === 'password' ? 'text' : 'password';
-        inputEl.type = t;
-        btn.innerHTML = t === 'password'
-          ? '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>'
-          : '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>';
-      });
-    }
-
-    const passwordInput = document.getElementById('password');
-    const confirmInput  = document.getElementById('confirm-password');
-    setupToggle('toggle-password', passwordInput);
-    setupToggle('toggle-confirm',  confirmInput);
-
-    const strengthBar  = document.getElementById('strength-bar');
-    const strengthText = document.getElementById('strength-text');
-    passwordInput?.addEventListener('input', () => {
-      const p = passwordInput.value;
-      let s = 0;
-      if (p.length >= 8) s++;
-      if (p.match(/[a-z]/) && p.match(/[A-Z]/)) s++;
-      if (p.match(/[0-9]/)) s++;
-      if (p.match(/[^a-zA-Z0-9]/)) s++;
-      if (s === 0) { strengthBar.className = 'password-strength-bar'; strengthBar.style.width = '0'; strengthText.textContent = 'Usa al menos 8 caracteres'; }
-      else if (s <= 2) { strengthBar.className = 'password-strength-bar weak'; strengthText.textContent = 'Contraseña débil'; }
-      else if (s === 3) { strengthBar.className = 'password-strength-bar medium'; strengthText.textContent = 'Contraseña media'; }
-      else { strengthBar.className = 'password-strength-bar strong'; strengthText.textContent = 'Contraseña fuerte'; }
-    });
-
-    const errorEl   = document.getElementById('error-message');
-    const successEl = document.getElementById('success-message');
-    function showError(msg)   { errorEl.textContent = msg;   errorEl.classList.add('show');   successEl.classList.remove('show'); }
-    function showSuccess(msg) { successEl.textContent = msg; successEl.classList.add('show'); errorEl.classList.remove('show'); }
-    function hideMessages()   { errorEl.classList.remove('show'); successEl.classList.remove('show'); }
-
-    function validateEmail(e) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e); }
-
-    const registerForm = document.getElementById('register-form');
-    const nameInput    = document.getElementById('name');
-    const emailInput   = document.getElementById('email');
-    const termsCheck   = document.getElementById('terms');
-    const submitBtn    = document.getElementById('submit-btn');
-
-    registerForm?.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      hideMessages();
-
-      const name     = nameInput.value.trim();
-      const email    = emailInput.value.trim().toLowerCase();
-      const password = passwordInput.value;
-      const confirm  = confirmInput.value;
-
-      if (!name || name.length < 2)              { showError('Por favor ingresa tu nombre completo'); nameInput.classList.add('error'); return; }
-      nameInput.classList.remove('error');
-      if (!validateEmail(email))                 { showError('Por favor ingresa un correo electrónico válido'); emailInput.classList.add('error'); return; }
-      if (!email.endsWith('@javeriana.edu.co'))  { showError('Debes usar tu correo institucional (@javeriana.edu.co)'); emailInput.classList.add('error'); return; }
-      emailInput.classList.remove('error');
-      if (password.length < 8)                   { showError('La contraseña debe tener al menos 8 caracteres'); passwordInput.classList.add('error'); return; }
-      passwordInput.classList.remove('error');
-      if (password !== confirm)                  { showError('Las contraseñas no coinciden'); confirmInput.classList.add('error'); return; }
-      confirmInput.classList.remove('error');
-      if (!termsCheck.checked)                   { showError('Debes aceptar los términos y condiciones'); return; }
-
-      submitBtn.disabled = true;
-      submitBtn.classList.add('loading');
-
-      try {
-        const auth = new AuthFacade();
-        const user = await auth.register({ name, email, password });
-        showSuccess(`¡Cuenta creada exitosamente! Bienvenido, ${user.name}!`);
-        submitBtn.textContent = '✓ Cuenta creada!';
-        submitBtn.style.background = 'linear-gradient(90deg,#10b981,#059669)';
-        setTimeout(() => window.location.href = 'index.html', 1400);
-      } catch (err) {
-        showError(err.message || 'Error al crear la cuenta. Por favor intenta de nuevo.');
-        submitBtn.disabled = false;
-        submitBtn.classList.remove('loading');
-        submitBtn.textContent = 'Crear Cuenta';
+    (function() {
+      const toast = document.getElementById('toast');
+      function showToast(msg) {
+        if (!toast) return;
+        toast.textContent = msg; toast.hidden = false; toast.classList.add('show');
+        setTimeout(() => { toast.classList.remove('show'); setTimeout(() => toast.hidden = true, 300); }, 2500);
       }
-    });
 
-    document.querySelectorAll('.terms-checkbox a').forEach(link => {
-      link.addEventListener('click', (e) => { e.preventDefault(); showToast('Documentos legales próximamente'); });
-    });
-  })();
+      function setupToggle(btnId, inputEl) {
+        const btn = document.getElementById(btnId);
+        btn?.addEventListener('click', () => {
+          const t = inputEl.type === 'password' ? 'text' : 'password';
+          inputEl.type = t;
+          btn.innerHTML = t === 'password'
+            ? '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>'
+            : '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>';
+        });
+      }
+
+      const passwordInput = document.getElementById('password');
+      const confirmInput  = document.getElementById('confirm-password');
+      setupToggle('toggle-password', passwordInput);
+      setupToggle('toggle-confirm',  confirmInput);
+
+      const strengthBar  = document.getElementById('strength-bar');
+      const strengthText = document.getElementById('strength-text');
+      passwordInput?.addEventListener('input', () => {
+        const p = passwordInput.value;
+        let s = 0;
+        if (p.length >= 8) s++;
+        if (p.match(/[a-z]/) && p.match(/[A-Z]/)) s++;
+        if (p.match(/[0-9]/)) s++;
+        if (p.match(/[^a-zA-Z0-9]/)) s++;
+        if (s === 0) { strengthBar.className = 'password-strength-bar'; strengthBar.style.width = '0'; strengthText.textContent = 'Usa al menos 8 caracteres'; }
+        else if (s <= 2) { strengthBar.className = 'password-strength-bar weak'; strengthText.textContent = 'Contraseña débil'; }
+        else if (s === 3) { strengthBar.className = 'password-strength-bar medium'; strengthText.textContent = 'Contraseña media'; }
+        else { strengthBar.className = 'password-strength-bar strong'; strengthText.textContent = 'Contraseña fuerte'; }
+      });
+
+      const errorEl   = document.getElementById('error-message');
+      const successEl = document.getElementById('success-message');
+      function showError(msg)   { errorEl.textContent = msg;   errorEl.classList.add('show');   successEl.classList.remove('show'); }
+      function showSuccess(msg) { successEl.textContent = msg; successEl.classList.add('show'); errorEl.classList.remove('show'); }
+      function hideMessages()   { errorEl.classList.remove('show'); successEl.classList.remove('show'); }
+
+      function validateEmail(e) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e); }
+
+      const registerForm = document.getElementById('register-form');
+      const nameInput    = document.getElementById('name');
+      const emailInput   = document.getElementById('email');
+      const termsCheck   = document.getElementById('terms');
+      const submitBtn    = document.getElementById('submit-btn');
+
+      registerForm?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        hideMessages();
+
+        const name     = nameInput.value.trim();
+        const email    = emailInput.value.trim().toLowerCase();
+        const password = passwordInput.value;
+        const confirm  = confirmInput.value;
+
+        if (!name || name.length < 2)              { showError('Por favor ingresa tu nombre completo'); nameInput.classList.add('error'); return; }
+        nameInput.classList.remove('error');
+        if (!validateEmail(email))                 { showError('Por favor ingresa un correo electrónico válido'); emailInput.classList.add('error'); return; }
+        if (!email.endsWith('@javeriana.edu.co'))  { showError('Debes usar tu correo institucional (@javeriana.edu.co)'); emailInput.classList.add('error'); return; }
+        emailInput.classList.remove('error');
+        if (password.length < 8)                   { showError('La contraseña debe tener al menos 8 caracteres'); passwordInput.classList.add('error'); return; }
+        passwordInput.classList.remove('error');
+        if (password !== confirm)                  { showError('Las contraseñas no coinciden'); confirmInput.classList.add('error'); return; }
+        confirmInput.classList.remove('error');
+        if (!termsCheck.checked)                   { showError('Debes aceptar los términos y condiciones'); return; }
+
+        submitBtn.disabled = true;
+        submitBtn.classList.add('loading');
+
+        try {
+          const auth = new AuthFacade();
+          const user = await auth.register({ name, email, password });
+          showSuccess(`¡Cuenta creada exitosamente! Bienvenido, ${user.name}!`);
+          submitBtn.textContent = '✓ Cuenta creada!';
+          submitBtn.style.background = 'linear-gradient(90deg,#10b981,#059669)';
+          setTimeout(() => window.location.href = 'index.html', 1400);
+        } catch (err) {
+          showError(err.message || 'Error al crear la cuenta. Por favor intenta de nuevo.');
+          submitBtn.disabled = false;
+          submitBtn.classList.remove('loading');
+          submitBtn.textContent = 'Crear Cuenta';
+        }
+      });
+
+      document.querySelectorAll('.terms-checkbox a').forEach(link => {
+        link.addEventListener('click', (e) => { e.preventDefault(); showToast('Documentos legales próximamente'); });
+      });
+    })();
   </script>
 </body>
 </html>
