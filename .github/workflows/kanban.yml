@@ -4,7 +4,7 @@ on:
   pull_request:
     types: [opened, closed]
 
-# Permisos necesarios
+# Permisos necesarios para el pipeline
 permissions:
   issues: write
 
