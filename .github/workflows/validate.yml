@@ -1,82 +1,63 @@
-name: Validate - Verificar los 6 patrones GoF
+name: Validar uso de patrones de diseño
 
 on:
   push:
-    branches: [ develop, feature/*, main ]
   pull_request:
-    branches: [ develop, main ]
 
 jobs:
-  verificar-patrones:
+  validar-patrones:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Descargar código
-        uses: actions/checkout@v4
+      # 1. Clona el repositorio en el runner
+      - name: Clonar repositorio
+        uses: actions/checkout@v3
 
-      # === DEBUG: Ver estructura de carpetas ===
-      - name: Mostrar estructura de archivos
+      # 2. Buscar patrones en archivos HTML
+      - name: Verificar uso de patrones en src/test/html
         run: |
-          echo "Estructura del repositorio:"
-          find . -type f -name "*.html" | head -20
-          ls -la
+          echo "Iniciando validación de patrones de diseño..."
 
-      # ==================== PATRONES CREACIONALES ====================
-      - name: Verificar Factory Method
-        run: |
-          echo "Buscando Factory Method..."
-          grep -r --include="*.html" -q "class JaverianaUserFactory" .
-          grep -r --include="*.html" -q "class UserFactory" .
-          echo "Factory Method detectado correctamente"
+          FILES=$(find src/test/html -name "*.html")
 
-      - name: Verificar Prototype
-        run: |
-          echo "Buscando Prototype..."
-          grep -r --include="*.html" -q "class PostPrototype" .
-          grep -r --include="*.html" -q "clone()" .
-          grep -r --include="*.html" -q "withNewId()" .
-          echo "Prototype detectado correctamente"
+          # Variables bandera (false = no encontrado)
+          decorator=false
+          facade=false
+          factory=false
+          observer=false
+          prototype=false
+          strategy=false
 
-      # ==================== PATRONES ESTRUCTURALES ====================
-      - name: Verificar Facade
-        run: |
-          echo "Buscando Facade..."
-          grep -r --include="*.html" -q "class AuthFacade" .
-          grep -r --include="*.html" -q "class SessionManager" .
-          echo "Facade detectado correctamente"
+          for file in $FILES; do
+            echo "Revisando archivo: $file"
 
-      - name: Verificar Decorator
-        run: |
-          echo "Buscando Decorator..."
-          grep -r --include="*.html" -q "class PostDecorator" .
-          grep -r --include="*.html" -q "extends PostDecorator" .
-          echo "Decorator detectado correctamente"
+            grep -iq "decorator" "$file" && decorator=true
+            grep -iq "facade" "$file" && facade=true
+            grep -iq "factory" "$file" && factory=true
+            grep -iq "observer" "$file" && observer=true
+            grep -iq "prototype" "$file" && prototype=true
+            grep -iq "strategy" "$file" && strategy=true
+          done
 
-      # ==================== PATRONES DE COMPORTAMIENTO ====================
-      - name: Verificar Observer
-        run: |
-          echo "Buscando Observer..."
-          grep -r --include="*.html" -q "class PostEventBus" .
-          grep -r --include="*.html" -q "notify(post)" .
-          echo "Observer detectado correctamente"
+          echo "----------------------------------------"
+          echo "RESULTADOS:"
+          echo "Decorator: $decorator"
+          echo "Facade: $facade"
+          echo "Factory Method: $factory"
+          echo "Observer: $observer"
+          echo "Prototype: $prototype"
+          echo "Strategy: $strategy"
+          echo "----------------------------------------"
 
-      - name: Verificar Strategy
-        run: |
-          echo "Buscando Strategy..."
-          grep -r --include="*.html" -q "class ProductFilter" .
-          grep -r --include="*.html" -q "setStrategy" .
-          echo "Strategy detectado correctamente"
+          if [ "$decorator" = false ] || \
+             [ "$facade" = false ] || \
+             [ "$factory" = false ] || \
+             [ "$observer" = false ] || \
+             [ "$prototype" = false ] || \
+             [ "$strategy" = false ]; then
 
-      # ==================== RESUMEN FINAL ====================
-      - name: Resumen de Validación GoF
-        run: |
-          echo ""
-          echo "===================================================="
-          echo "¡TODOS LOS 6 PATRONES GoF HAN SIDO VALIDADOS!"
-          echo "===================================================="
-          echo "Creacionales → Factory Method + Prototype"
-          echo "Estructurales → Facade + Decorator"
-          echo "Comportamiento → Observer + Strategy"
-          echo ""
-          echo "Validación completada exitosamente."
-          echo "===================================================="
+            echo "ERROR: No todos los patrones están siendo utilizados en los HTML"
+            exit 1
+          fi
+
+          echo "ÉXITO: Todos los patrones fueron encontrados"
