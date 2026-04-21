@@ -1,6 +1,6 @@
 name: CD - Empaquetado y Optimización para Despliegue
 
-# Eventos que activan este pipeline
+# Eventos que activan este pipeline son:
 on:
   push:
     branches: [ main, develop ]
