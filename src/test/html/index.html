@@ -256,6 +256,7 @@
     </div>
   </footer>
 
+  <!-- Modal editar -->
   <div class="modal" id="edit-modal" hidden role="dialog" aria-modal="true" aria-labelledby="modal-title">
     <div class="modal-backdrop" id="modal-backdrop"></div>
     <div class="modal-content">
@@ -305,307 +306,369 @@
   <div id="toast" class="toast" aria-live="polite" hidden></div>
 
   <script>
-  class SessionManager {
-    static SESSION_KEY = 'unimercs_current_user';
-    static TOKEN_KEY   = 'unimercs_token';
-    destroySession()   { localStorage.removeItem(SessionManager.SESSION_KEY); localStorage.removeItem(SessionManager.TOKEN_KEY); }
-    getSession()       { const r = localStorage.getItem(SessionManager.SESSION_KEY); return r ? JSON.parse(r) : null; }
-    getToken()         { return localStorage.getItem(SessionManager.TOKEN_KEY); }
-    isAuthenticated()  { return this.getSession() !== null; }
-  }
-  class AuthFacade {
-    constructor()     { this._session = new SessionManager(); }
-    logout()          { this._session.destroySession(); }
-    getCurrentUser()  { return this._session.getSession(); }
-    getToken()        { return this._session.getToken(); }
-    isAuthenticated() { return this._session.isAuthenticated(); }
-  }
+    /* ====================== PATRÓN FACADE (Sesión) ====================== */
+    class SessionManager {
+      static SESSION_KEY = 'unimercs_current_user';
+      static TOKEN_KEY   = 'unimercs_token';
+      destroySession()   { localStorage.removeItem(SessionManager.SESSION_KEY); localStorage.removeItem(SessionManager.TOKEN_KEY); }
+      getSession()       { const r = localStorage.getItem(SessionManager.SESSION_KEY); return r ? JSON.parse(r) : null; }
+      getToken()         { return localStorage.getItem(SessionManager.TOKEN_KEY); }
+      isAuthenticated()  { return this.getSession() !== null; }
+    }
+    class AuthFacade {
+      constructor()     { this._session = new SessionManager(); }
+      logout()          { this._session.destroySession(); }
+      getCurrentUser()  { return this._session.getSession(); }
+      getToken()        { return this._session.getToken(); }
+      isAuthenticated() { return this._session.isAuthenticated(); }
+    }
 
-  class PostObserver { update(post) { throw new Error('Implementar update()'); } }
-  class PostEventBus {
-    constructor() { this._observers = []; }
-    subscribe(o)  { this._observers.push(o); }
-    notify(post)  { this._observers.forEach(o => o.update(post)); }
-  }
-  class FeedRefresher extends PostObserver {
-    constructor(loadFn) { super(); this._load = loadFn; }
-    update(post) { console.log(`[FeedRefresher] Nueva publicación: "${post.title}" — recargando feed`); this._load(); }
-  }
+    /* ====================== PATRÓN STRATEGY ====================== */
+    class FilterStrategy {
+      filter(products, value) { throw new Error('Implementar filter()'); }
+    }
+    class CategoryFilter extends FilterStrategy {
+      filter(products, category) {
+        if (!category || category === 'all') return products;
+        return products.filter(p => p.category === category);
+      }
+    }
+    class TextSearchFilter extends FilterStrategy {
+      filter(products, term) {
+        if (!term || term.trim() === '') return products;
+        const lower = term.toLowerCase();
+        return products.filter(p =>
+          (p.title || '').toLowerCase().includes(lower) ||
+          (p.sellerName || '').toLowerCase().includes(lower)
+        );
+      }
+    }
+    class PriceRangeFilter extends FilterStrategy {
+      filter(products, range) {
+        const { min, max } = range;
+        return products.filter(p => {
+          const price = Number(p.price);
+          if (min !== undefined && price < min) return false;
+          if (max !== undefined && price > max) return false;
+          return true;
+        });
+      }
+    }
+    class ProductFilter {
+      constructor() { this.strategy = null; }
+      setStrategy(strategy) { this.strategy = strategy; }
+      apply(products, value) {
+        if (!this.strategy) return products;
+        return this.strategy.filter(products, value);
+      }
+    }
+
+    /* ====================== PATRÓN OBSERVER ====================== */
+    class PostObserver {
+      update(post) { throw new Error('Implementar update()'); }
+    }
+    class PostEventBus {
+      constructor() { this.observers = []; }
+      subscribe(observer) { this.observers.push(observer); }
+      unsubscribe(observer) { this.observers = this.observers.filter(o => o !== observer); }
+      notify(post) { this.observers.forEach(o => o.update(post)); }
+    }
+    class FeedUpdater extends PostObserver {
+      constructor(loadFn) { super(); this._load = loadFn; }
+      update(post) {
+        console.log(`[FeedUpdater] Nueva publicación recibida: "${post.title}"`);
+        this._load();
+      }
+    }
+    class NotificationObserver extends PostObserver {
+      update(post) {
+        window.dispatchEvent(new CustomEvent('unimercs:new-post', { detail: post }));
+      }
+    }
   </script>
 
   <script>
-  (function() {
-    const API = 'http://localhost:5000';
-    const auth = new AuthFacade();
+    (function() {
+      const API = 'http://localhost:5000';
+      const auth = new AuthFacade();
 
-    let allProducts    = [];
-    let filteredProducts = [];
-    let activeCategory = 'all';
-    let searchTerm     = '';
-    let searchTimeout  = null;
+      let allProducts = [];
+      let filteredProducts = [];
+      let activeCategory = 'all';
+      let searchTerm = '';
+      let searchTimeout = null;
 
-    const toastEl       = document.getElementById('toast');
-    const productsGrid  = document.getElementById('products-grid');
-    const emptyState    = document.getElementById('empty-state');
-    const resultsCount  = document.getElementById('results-count');
-    const userInfoDiv   = document.getElementById('user-info');
-    const loginLink     = document.getElementById('login-link');
-    const registerLink  = document.getElementById('register-link');
-    const logoutBtn     = document.getElementById('logout-btn');
+      const toastEl       = document.getElementById('toast');
+      const productsGrid  = document.getElementById('products-grid');
+      const emptyState    = document.getElementById('empty-state');
+      const resultsCount  = document.getElementById('results-count');
+      const userInfoDiv   = document.getElementById('user-info');
+      const loginLink     = document.getElementById('login-link');
+      const registerLink  = document.getElementById('register-link');
+      const logoutBtn     = document.getElementById('logout-btn');
 
-    const currentSession = auth.getCurrentUser();
-    const token          = auth.getToken();
+      const currentSession = auth.getCurrentUser();
+      const token          = auth.getToken();
 
-    if (currentSession) {
-      userInfoDiv.textContent   = `Hola, ${currentSession.name}`;
-      userInfoDiv.style.display = 'block';
-      loginLink.style.display   = 'none';
-      registerLink.style.display = 'none';
-      logoutBtn.style.display   = 'block';
-    }
-
-    logoutBtn?.addEventListener('click', (e) => {
-      e.preventDefault();
-      auth.logout();
-      window.location.reload();
-    });
-
-    const profileBtn  = document.getElementById('profile-btn');
-    const profileMenu = document.getElementById('profile-dropdown-menu');
-    profileBtn?.addEventListener('click', (e) => {
-      e.stopPropagation();
-      profileMenu.hasAttribute('hidden') ? profileMenu.removeAttribute('hidden') : profileMenu.setAttribute('hidden', '');
-    });
-    document.addEventListener('click', (e) => {
-      if (profileMenu && !profileMenu.contains(e.target) && !profileBtn.contains(e.target))
-        profileMenu.setAttribute('hidden', '');
-    });
-
-    function showToast(msg) {
-      if (!toastEl) return;
-      toastEl.textContent = msg;
-      toastEl.removeAttribute('hidden'); toastEl.classList.add('show');
-      setTimeout(() => { toastEl.classList.remove('show'); setTimeout(() => toastEl.setAttribute('hidden', ''), 300); }, 2500);
-    }
-
-    function formatPrice(n) {
-      return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(n);
-    }
-    function getCategoryLabel(v) {
-      return { electronics:'Electrónicos', computers:'Computadoras', fashion:'Moda', home:'Casa', books:'Libros', games:'Videojuegos' }[v] || v;
-    }
-    function getConditionLabel(v) {
-      if (v === 'new') return 'Nuevo';
-      if (v === 'barely used') return 'Como Nuevo';
-      if (v === 'used') return 'Usado';
-      return v || '';
-    }
-    function getInitials(n) { return n ? n.substring(0, 2).toUpperCase() : 'U'; }
-
-    function showSkeletons(n = 6) {
-      productsGrid.innerHTML = Array(n).fill(`
-        <div class="skeleton-card">
-          <div class="skeleton-img"></div>
-          <div class="skeleton-body">
-            <div class="skeleton-line short"></div>
-            <div class="skeleton-line"></div>
-            <div class="skeleton-line price"></div>
-          </div>
-        </div>`).join('');
-    }
-
-    async function loadProducts() {
-      showSkeletons();
-      try {
-        const params = new URLSearchParams();
-        if (activeCategory !== 'all') params.set('category', activeCategory);
-        if (searchTerm)               params.set('search',   searchTerm);
-
-        const res  = await fetch(`${API}/api/posts?${params}`);
-        if (!res.ok) throw new Error('Error al cargar publicaciones');
-        allProducts = await res.json();
-        filteredProducts = allProducts;
-        renderProducts();
-      } catch (err) {
-        console.error(err);
-        productsGrid.innerHTML = '';
-        emptyState.removeAttribute('hidden');
-        emptyState.querySelector('h3').textContent = 'Error al cargar publicaciones';
-        emptyState.querySelector('p').textContent  = 'Verifica que el servidor esté corriendo.';
+      if (currentSession) {
+        userInfoDiv.textContent   = `Hola, ${currentSession.name}`;
+        userInfoDiv.style.display = 'block';
+        loginLink.style.display   = 'none';
+        registerLink.style.display = 'none';
+        logoutBtn.style.display   = 'block';
       }
-    }
 
-    function renderProducts() {
-      if (!productsGrid) return;
-      productsGrid.innerHTML = '';
-      resultsCount.textContent = filteredProducts.length;
+      logoutBtn?.addEventListener('click', (e) => {
+        e.preventDefault();
+        auth.logout();
+        window.location.reload();
+      });
 
-      if (filteredProducts.length === 0) {
-        emptyState.removeAttribute('hidden');
-        return;
+      const profileBtn  = document.getElementById('profile-btn');
+      const profileMenu = document.getElementById('profile-dropdown-menu');
+      profileBtn?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        profileMenu.hasAttribute('hidden') ? profileMenu.removeAttribute('hidden') : profileMenu.setAttribute('hidden', '');
+      });
+      document.addEventListener('click', (e) => {
+        if (profileMenu && !profileMenu.contains(e.target) && !profileBtn.contains(e.target))
+          profileMenu.setAttribute('hidden', '');
+      });
+
+      function showToast(msg) {
+        if (!toastEl) return;
+        toastEl.textContent = msg;
+        toastEl.removeAttribute('hidden'); toastEl.classList.add('show');
+        setTimeout(() => { toastEl.classList.remove('show'); setTimeout(() => toastEl.setAttribute('hidden', ''), 300); }, 2500);
       }
-      emptyState.setAttribute('hidden', '');
 
-      filteredProducts.forEach(product => {
-        const isOwner = currentSession && token &&
-          (product.sellerEmail === currentSession.email ||
-           String(product.sellerId) === String(currentSession.id));
+      function formatPrice(n) {
+        return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(n);
+      }
+      function getCategoryLabel(v) {
+        return { electronics:'Electrónicos', computers:'Computadoras', fashion:'Moda', home:'Casa', books:'Libros', games:'Videojuegos' }[v] || v;
+      }
+      function getConditionLabel(v) {
+        if (v === 'new') return 'Nuevo';
+        if (v === 'barely used') return 'Como Nuevo';
+        if (v === 'used') return 'Usado';
+        return v || '';
+      }
+      function getInitials(n) { return n ? n.substring(0, 2).toUpperCase() : 'U'; }
 
-        const ownerActionsHTML = isOwner ? `
-          <div class="owner-actions">
-            <button class="action-btn action-edit" title="Editar" data-id="${product._id}">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
-            </button>
-            <button class="action-btn action-delete" title="Eliminar" data-id="${product._id}">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
-            </button>
-          </div>` : '';
-
-        const imgSrc = product.imageUrl
-          ? (product.imageUrl.startsWith('http') ? product.imageUrl : `${API}${product.imageUrl}`)
-          : 'https://via.placeholder.com/400x300?text=Sin+Imagen';
-
-        const card = document.createElement('article');
-        card.className = 'product-card';
-        card.innerHTML = `
-          ${ownerActionsHTML}
-          <div class="product-image-wrap">
-            <img src="${imgSrc}" alt="${product.title}" class="product-image" loading="lazy"
-                 onerror="this.src='https://via.placeholder.com/400x300?text=Sin+Imagen'">
-          </div>
-          <div class="product-content">
-            <span class="product-category">${getCategoryLabel(product.category)}</span>
-            <h3 class="product-title">${product.title}</h3>
-            <div class="product-price">${formatPrice(product.price)}</div>
-            <div class="product-meta">
-              <span class="product-seller">
-                <span class="avatar-mini">${getInitials(product.sellerName)}</span>
-                ${product.sellerName}
-              </span>
-              <span>${getConditionLabel(product.condition)}</span>
+      function showSkeletons(n = 6) {
+        productsGrid.innerHTML = Array(n).fill(`
+          <div class="skeleton-card">
+            <div class="skeleton-img"></div>
+            <div class="skeleton-body">
+              <div class="skeleton-line short"></div>
+              <div class="skeleton-line"></div>
+              <div class="skeleton-line price"></div>
             </div>
-          </div>`;
-        productsGrid.appendChild(card);
-      });
-
-      attachCardEvents();
-    }
-
-    function attachCardEvents() {
-      document.querySelectorAll('.action-delete').forEach(btn => {
-        btn.addEventListener('click', (e) => { e.preventDefault(); confirmDelete(btn.getAttribute('data-id')); });
-      });
-      document.querySelectorAll('.action-edit').forEach(btn => {
-        btn.addEventListener('click', (e) => { e.preventDefault(); openEditModal(btn.getAttribute('data-id')); });
-      });
-    }
-
-    async function confirmDelete(id) {
-      if (!confirm('¿Estás seguro de que deseas eliminar tu publicación? Esta acción no se puede deshacer.')) return;
-      try {
-        const res = await fetch(`${API}/api/posts/${id}`, {
-          method: 'DELETE',
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (!res.ok) { const d = await res.json(); throw new Error(d.message); }
-        showToast('Publicación eliminada correctamente.');
-        loadProducts();
-      } catch (err) {
-        showToast('Error al eliminar: ' + err.message);
+          </div>`).join('');
       }
-    }
 
-    const editModal     = document.getElementById('edit-modal');
-    const editForm      = document.getElementById('edit-form');
-    const closeModalBtn = document.getElementById('close-modal-btn');
-    const cancelEditBtn = document.getElementById('cancel-edit-btn');
-    const backdrop      = document.getElementById('modal-backdrop');
-    const editId        = document.getElementById('edit-id');
-    const editTitle     = document.getElementById('edit-title');
-    const editCategory  = document.getElementById('edit-category');
-    const editState     = document.getElementById('edit-state');
-    const editPrice     = document.getElementById('edit-price');
-
-    function openEditModal(id) {
-      const product = allProducts.find(p => String(p._id) === String(id));
-      if (!product) return;
-      editId.value       = product._id;
-      editTitle.value    = product.title || '';
-      editPrice.value    = product.price || '';
-      if (product.category)  editCategory.value = product.category;
-      if (product.condition) editState.value    = product.condition;
-      editModal.removeAttribute('hidden');
-    }
-
-    function closeEditModal() { editModal.setAttribute('hidden', ''); editForm.reset(); }
-
-    closeModalBtn?.addEventListener('click', closeEditModal);
-    cancelEditBtn?.addEventListener('click', closeEditModal);
-    backdrop?.addEventListener('click', closeEditModal);
-
-    editForm?.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const id        = editId.value;
-      const newTitle  = editTitle.value.trim();
-      const newPrice  = Number(editPrice.value);
-      const newCat    = editCategory.value;
-      const newState  = editState.value;
-
-      if (!newTitle || newPrice <= 0) { showToast('Por favor revisa los campos ingresados'); return; }
-
-      try {
-        const res = await fetch(`${API}/api/posts/${id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-          body: JSON.stringify({ title: newTitle, price: newPrice, category: newCat, condition: newState })
-        });
-        if (!res.ok) { const d = await res.json(); throw new Error(d.message); }
-        closeEditModal();
-        showToast('Cambios guardados con éxito.');
-        loadProducts();
-      } catch (err) {
-        showToast('Error al guardar: ' + err.message);
+      async function loadProducts() {
+        showSkeletons();
+        try {
+          const res  = await fetch(`${API}/api/posts`);
+          if (!res.ok) throw new Error('Error al cargar publicaciones');
+          allProducts = await res.json();
+          applyFilters();
+        } catch (err) {
+          console.error(err);
+          productsGrid.innerHTML = '';
+          emptyState.removeAttribute('hidden');
+          emptyState.querySelector('h3').textContent = 'Error al cargar publicaciones';
+          emptyState.querySelector('p').textContent  = 'Verifica que el servidor esté corriendo.';
+        }
       }
-    });
 
-    const searchInput = document.getElementById('global-search');
-    const searchBtn   = document.getElementById('search-desktop-btn');
+      function applyFilters() {
+        let products = [...allProducts];
+        const filterManager = new ProductFilter();
 
-    function triggerSearch() {
-      searchTerm = searchInput.value.trim();
-      loadProducts();
-    }
+        filterManager.setStrategy(new CategoryFilter());
+        products = filterManager.apply(products, activeCategory);
 
-    searchInput?.addEventListener('input', () => {
-      clearTimeout(searchTimeout);
-      searchTimeout = setTimeout(triggerSearch, 400);
-    });
-    searchBtn?.addEventListener('click', triggerSearch);
+        filterManager.setStrategy(new TextSearchFilter());
+        products = filterManager.apply(products, searchTerm);
 
-    const catBtns = document.querySelectorAll('.cat-btn');
-    document.getElementById('category-filters')?.addEventListener('click', (e) => {
-      if (e.target.classList.contains('cat-btn')) {
+        filteredProducts = products;
+        renderProducts();
+      }
+
+      function renderProducts() {
+        if (!productsGrid) return;
+        productsGrid.innerHTML = '';
+        resultsCount.textContent = filteredProducts.length;
+
+        if (filteredProducts.length === 0) {
+          emptyState.removeAttribute('hidden');
+          return;
+        }
+        emptyState.setAttribute('hidden', '');
+
+        filteredProducts.forEach(product => {
+          const isOwner = currentSession && token &&
+            (product.sellerEmail === currentSession.email || String(product.sellerId) === String(currentSession.id));
+
+          const ownerActionsHTML = isOwner ? `
+            <div class="owner-actions">
+              <button class="action-btn action-edit" title="Editar" data-id="${product._id}">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+              </button>
+              <button class="action-btn action-delete" title="Eliminar" data-id="${product._id}">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+              </button>
+            </div>` : '';
+
+          const imgSrc = product.imageUrl
+            ? (product.imageUrl.startsWith('http') ? product.imageUrl : `${API}${product.imageUrl}`)
+            : 'https://via.placeholder.com/400x300?text=Sin+Imagen';
+
+          const card = document.createElement('article');
+          card.className = 'product-card';
+          card.innerHTML = `
+            ${ownerActionsHTML}
+            <div class="product-image-wrap">
+              <img src="${imgSrc}" alt="${product.title}" class="product-image" loading="lazy"
+                   onerror="this.src='https://via.placeholder.com/400x300?text=Sin+Imagen'">
+            </div>
+            <div class="product-content">
+              <span class="product-category">${getCategoryLabel(product.category)}</span>
+              <h3 class="product-title">${product.title}</h3>
+              <div class="product-price">${formatPrice(product.price)}</div>
+              <div class="product-meta">
+                <span class="product-seller">
+                  <span class="avatar-mini">${getInitials(product.sellerName)}</span>
+                  ${product.sellerName}
+                </span>
+                <span>${getConditionLabel(product.condition)}</span>
+              </div>
+            </div>`;
+          productsGrid.appendChild(card);
+        });
+
+        attachCardEvents();
+      }
+
+      function attachCardEvents() {
+        document.querySelectorAll('.action-delete').forEach(btn => {
+          btn.addEventListener('click', (e) => { e.preventDefault(); confirmDelete(btn.getAttribute('data-id')); });
+        });
+        document.querySelectorAll('.action-edit').forEach(btn => {
+          btn.addEventListener('click', (e) => { e.preventDefault(); openEditModal(btn.getAttribute('data-id')); });
+        });
+      }
+
+      async function confirmDelete(id) {
+        if (!confirm('¿Estás seguro de que deseas eliminar tu publicación? Esta acción no se puede deshacer.')) return;
+        try {
+          const res = await fetch(`${API}/api/posts/${id}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          if (!res.ok) { const d = await res.json(); throw new Error(d.message); }
+          showToast('Publicación eliminada correctamente.');
+          loadProducts();
+        } catch (err) {
+          showToast('Error al eliminar: ' + err.message);
+        }
+      }
+
+      const editModal     = document.getElementById('edit-modal');
+      const editForm      = document.getElementById('edit-form');
+      const closeModalBtn = document.getElementById('close-modal-btn');
+      const cancelEditBtn = document.getElementById('cancel-edit-btn');
+      const backdrop      = document.getElementById('modal-backdrop');
+      const editId        = document.getElementById('edit-id');
+      const editTitle     = document.getElementById('edit-title');
+      const editCategory  = document.getElementById('edit-category');
+      const editState     = document.getElementById('edit-state');
+      const editPrice     = document.getElementById('edit-price');
+
+      function openEditModal(id) {
+        const product = allProducts.find(p => String(p._id) === String(id));
+        if (!product) return;
+        editId.value       = product._id;
+        editTitle.value    = product.title || '';
+        editPrice.value    = product.price || '';
+        if (product.category)  editCategory.value = product.category;
+        if (product.condition) editState.value    = product.condition;
+        editModal.removeAttribute('hidden');
+      }
+
+      function closeEditModal() { editModal.setAttribute('hidden', ''); editForm.reset(); }
+
+      closeModalBtn?.addEventListener('click', closeEditModal);
+      cancelEditBtn?.addEventListener('click', closeEditModal);
+      backdrop?.addEventListener('click', closeEditModal);
+
+      editForm?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const id        = editId.value;
+        const newTitle  = editTitle.value.trim();
+        const newPrice  = Number(editPrice.value);
+        const newCat    = editCategory.value;
+        const newState  = editState.value;
+
+        if (!newTitle || newPrice <= 0) { showToast('Por favor revisa los campos ingresados'); return; }
+
+        try {
+          const res = await fetch(`${API}/api/posts/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({ title: newTitle, price: newPrice, category: newCat, condition: newState })
+          });
+          if (!res.ok) { const d = await res.json(); throw new Error(d.message); }
+          closeEditModal();
+          showToast('Cambios guardados con éxito.');
+          loadProducts();
+        } catch (err) {
+          showToast('Error al guardar: ' + err.message);
+        }
+      });
+
+      const searchInput = document.getElementById('global-search');
+      const searchBtn   = document.getElementById('search-desktop-btn');
+
+      function triggerSearch() {
+        searchTerm = searchInput.value.trim();
+        applyFilters();
+      }
+
+      searchInput?.addEventListener('input', () => {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(triggerSearch, 400);
+      });
+      searchBtn?.addEventListener('click', triggerSearch);
+
+      const catBtns = document.querySelectorAll('.cat-btn');
+      document.getElementById('category-filters')?.addEventListener('click', (e) => {
+        if (e.target.classList.contains('cat-btn')) {
+          catBtns.forEach(b => b.classList.remove('active'));
+          e.target.classList.add('active');
+          activeCategory = e.target.getAttribute('data-category');
+          applyFilters();
+        }
+      });
+
+      document.getElementById('clear-filters-btn')?.addEventListener('click', () => {
+        searchTerm = ''; searchInput.value = ''; activeCategory = 'all';
         catBtns.forEach(b => b.classList.remove('active'));
-        e.target.classList.add('active');
-        activeCategory = e.target.getAttribute('data-category');
-        loadProducts();
-      }
-    });
+        document.querySelector('[data-category="all"]').classList.add('active');
+        applyFilters();
+      });
 
-    document.getElementById('clear-filters-btn')?.addEventListener('click', () => {
-      searchTerm = ''; searchInput.value = ''; activeCategory = 'all';
-      catBtns.forEach(b => b.classList.remove('active'));
-      document.querySelector('[data-category="all"]').classList.add('active');
+      /* Observer */
+      const postBus = new PostEventBus();
+      postBus.subscribe(new FeedUpdater(loadProducts));
+      postBus.subscribe(new NotificationObserver());
+      window.addEventListener('unimercs:new-post', (e) => postBus.notify(e.detail));
+
       loadProducts();
-    });
-
-    const indexBus = new PostEventBus();
-    indexBus.subscribe(new FeedRefresher(loadProducts));
-    window.addEventListener('unimercs:new-post', (e) => indexBus.notify(e.detail));
-
-    loadProducts();
-
-  })();
+    })();
   </script>
 </body>
 </html>

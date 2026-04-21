@@ -275,7 +275,6 @@
                placeholder="ej. 150000" inputmode="decimal" required />
       </div>
 
-      <!-- Campo de nombre prellenado desde sesión (solo visual, no se envía — el backend lo toma del token) -->
       <div class="form-group">
         <label class="form-label" for="product-username">Nombre del vendedor</label>
         <input type="text" id="product-username" class="form-input" readonly
@@ -324,189 +323,283 @@
 
   <div id="toast" class="toast" aria-live="polite" hidden></div>
 
-
   <script>
-  class PostObserver { update(post) { throw new Error('Implementar update()'); } }
-  class PostEventBus {
-    constructor() { this._observers = []; }
-    subscribe(observer) {
-      if (!(observer instanceof PostObserver)) throw new TypeError('Debe implementar PostObserver');
-      this._observers.push(observer);
+    /* ====================== PATRÓN OBSERVER ====================== */
+    class PostObserver { update(post) { throw new Error('Implementar update()'); } }
+    class PostEventBus {
+      constructor() { this._observers = []; }
+      subscribe(observer) {
+        if (!(observer instanceof PostObserver)) throw new TypeError('Debe implementar PostObserver');
+        this._observers.push(observer);
+      }
+      notify(post) { this._observers.forEach(o => o.update(post)); }
     }
-    notify(post) { this._observers.forEach(o => o.update(post)); }
-  }
-  class ExploreUpdater extends PostObserver {
-    update(post) { console.log(`[ExploreUpdater] "${post.title}" publicado en el backend`); }
-  }
-  class NotificationObserver extends PostObserver {
-    update(post) {
-      const event = new CustomEvent('unimercs:new-post', { detail: post });
-      window.dispatchEvent(event);
-      console.log(`[NotificationObserver] Evento disparado para "${post.title}"`);
+    class ExploreUpdater extends PostObserver {
+      update(post) { console.log(`[ExploreUpdater] "${post.title}" publicado en el backend`); }
     }
-  }
-  const postBus = new PostEventBus();
-  postBus.subscribe(new ExploreUpdater());
-  postBus.subscribe(new NotificationObserver());
+    class NotificationObserver extends PostObserver {
+      update(post) {
+        const event = new CustomEvent('unimercs:new-post', { detail: post });
+        window.dispatchEvent(event);
+        console.log(`[NotificationObserver] Evento disparado para "${post.title}"`);
+      }
+    }
+    const postBus = new PostEventBus();
+    postBus.subscribe(new ExploreUpdater());
+    postBus.subscribe(new NotificationObserver());
   </script>
 
   <script>
-  (function () {
-    const API = 'http://localhost:5000';
-
-    const token   = localStorage.getItem('unimercs_token');
-    const session = JSON.parse(localStorage.getItem('unimercs_current_user') || 'null');
-
-    if (!token || !session) {
-      alert('Debes iniciar sesión para crear una publicación');
-      window.location.href = 'login.html';
-    }
-
-    window.addEventListener('DOMContentLoaded', () => {
-      const usernameInput = document.getElementById('product-username');
-      if (usernameInput && session) usernameInput.value = session.name;
-
-      const userInfoDiv  = document.getElementById('user-info');
-      const loginLink    = document.getElementById('login-link');
-      const registerLink = document.getElementById('register-link');
-      const logoutBtn    = document.getElementById('logout-btn');
-      const mLogout      = document.getElementById('m-logout');
-      const mLogin       = document.getElementById('m-login');
-      const mRegister    = document.getElementById('m-register');
-
-      if (session) {
-        userInfoDiv.textContent = `Hola, ${session.name}`;
-        userInfoDiv.style.display = 'block';
-        loginLink.style.display    = 'none';
-        registerLink.style.display = 'none';
-        logoutBtn.style.display    = 'block';
-        if (mLogout)   { mLogout.style.display = 'block'; }
-        if (mLogin)    { mLogin.style.display = 'none'; }
-        if (mRegister) { mRegister.style.display = 'none'; }
+    /* ====================== PATRÓN PROTOTYPE ====================== */
+    class PostPrototype {
+      constructor({ title, category, price, username, state, imageDataUrl }) {
+        this.title = title;
+        this.category = category;
+        this.price = price;
+        this.username = username;
+        this.state = state;
+        this.imageDataUrl = imageDataUrl || '';
       }
-
-      logoutBtn?.addEventListener('click', (e) => {
-        e.preventDefault();
-        localStorage.removeItem('unimercs_token');
-        localStorage.removeItem('unimercs_current_user');
-        window.location.href = 'index.html';
-      });
-      mLogout?.addEventListener('click', (e) => {
-        e.preventDefault();
-        localStorage.removeItem('unimercs_token');
-        localStorage.removeItem('unimercs_current_user');
-        window.location.href = 'index.html';
-      });
-    });
-
-    const toast = document.getElementById('toast');
-    function showToast(msg) {
-      if (!toast) return;
-      toast.textContent = msg; toast.hidden = false; toast.classList.add('show');
-      setTimeout(() => { toast.classList.remove('show'); setTimeout(() => toast.hidden = true, 300); }, 2500);
-    }
-
-    const imageEl   = document.getElementById('product-image');
-    const previewEl = document.getElementById('image-preview');
-    imageEl?.addEventListener('change', function () {
-      previewEl.innerHTML = '';
-      const file = imageEl.files && imageEl.files[0];
-      if (!file) return;
-      const img = document.createElement('img');
-      previewEl.appendChild(img);
-      const reader = new FileReader();
-      reader.onload = () => { img.src = reader.result; };
-      reader.readAsDataURL(file);
-    });
-
-    const sellForm    = document.getElementById('sell-form');
-    const titleEl     = document.getElementById('product-title');
-    const categoryEl  = document.getElementById('product-category');
-    const stateEl     = document.getElementById('product-state');
-    const priceEl     = document.getElementById('product-price');
-    const errorEl     = document.getElementById('form-error');
-    const submitBtn   = document.getElementById('submit-btn');
-
-    function showError(msg) { errorEl.textContent = msg; errorEl.classList.add('show'); errorEl.style.display = 'block'; }
-    function hideError()    { errorEl.classList.remove('show'); errorEl.style.display = 'none'; }
-
-    sellForm?.addEventListener('submit', async function (e) {
-      e.preventDefault();
-      hideError();
-
-      const title    = titleEl.value.trim();
-      const category = categoryEl.value;
-      const state    = stateEl.value;
-      const priceRaw = priceEl.value.trim();
-      const priceNum = Number(priceRaw.replace(/[^0-9.]/g, ''));
-      const file     = imageEl.files && imageEl.files[0];
-
-      if (!title)                         { showError('Por favor ingresa un título para tu producto'); return; }
-      if (!category)                      { showError('Por favor selecciona una categoría'); return; }
-      if (!priceRaw || isNaN(priceNum) || priceNum <= 0) { showError('Por favor ingresa un precio válido'); return; }
-      if (!file)                          { showError('Por favor sube una imagen de tu producto'); return; }
-
-      submitBtn.disabled = true;
-      submitBtn.classList.add('loading');
-
-      try {
-        const formData = new FormData();
-        formData.append('title',     title);
-        formData.append('category',  category);
-        formData.append('condition', state);
-        formData.append('price',     priceNum);
-        formData.append('image',     file);
-
-        const res  = await fetch(`${API}/api/posts`, {
-          method: 'POST',
-          headers: { 'Authorization': `Bearer ${token}` },
-          body: formData
+      clone() {
+        return new PostPrototype({
+          title: this.title,
+          category: this.category,
+          price: this.price,
+          username: this.username,
+          state: this.state,
+          imageDataUrl: this.imageDataUrl
         });
-        const data = await res.json();
-
-        if (!res.ok) throw new Error(data.message || 'Error al crear la publicación');
-
-        postBus.notify(data);
-
-        showToast('✓ Publicación creada exitosamente!');
-        submitBtn.textContent = '✓ ¡Publicado!';
-        submitBtn.style.background = 'linear-gradient(90deg,#10b981,#059669)';
-
-        setTimeout(() => {
-          showToast('Redirigiendo al inicio...');
-          setTimeout(() => window.location.href = 'index.html', 800);
-        }, 1500);
-
-      } catch (err) {
-        console.error(err);
-        showError(err.message || 'Error al crear la publicación. Por favor intenta de nuevo.');
-        submitBtn.disabled = false;
-        submitBtn.classList.remove('loading');
-        submitBtn.textContent = 'Crear Publicación';
       }
-    });
+      withNewId() {
+        const copy = this.clone();
+        copy.id = String(Date.now());
+        copy.createdAt = new Date().toISOString();
+        return copy;
+      }
+    }
 
-    const profileBtn  = document.getElementById('profile-btn');
-    const profileMenu = document.getElementById('profile-dropdown-menu');
-    profileBtn?.addEventListener('click', (e) => {
-      e.stopPropagation();
-      if (profileMenu.hasAttribute('hidden')) profileMenu.removeAttribute('hidden');
-      else profileMenu.setAttribute('hidden', '');
-    });
-    document.addEventListener('click', (e) => {
-      if (profileMenu && !profileMenu.contains(e.target) && !profileBtn.contains(e.target))
-        profileMenu.setAttribute('hidden', '');
-    });
+    /* ====================== PATRÓN DECORATOR ====================== */
+    class BasePost {
+      constructor(data) {
+        this.id = data.id;
+        this.title = data.title;
+        this.price = data.price;
+        this.category = data.category;
+        this.state = data.state;
+        this.username = data.username;
+        this.imageDataUrl = data.imageDataUrl;
+        this.createdAt = data.createdAt;
+      }
+      getData() {
+        return { ...this };
+      }
+    }
 
-    const mobileToggle = document.getElementById('mobile-toggle');
-    const mobileMenu   = document.getElementById('mobile-menu');
-    mobileToggle?.addEventListener('click', function () {
-      const exp = this.getAttribute('aria-expanded') === 'true';
-      this.setAttribute('aria-expanded', String(!exp));
-      if (mobileMenu.hasAttribute('hidden')) mobileMenu.removeAttribute('hidden');
-      else mobileMenu.setAttribute('hidden', '');
-    });
-  })();
+    class PostDecorator {
+      constructor(post) {
+        this.post = post;
+      }
+      getData() {
+        return this.post.getData();
+      }
+    }
+
+    class TimestampDecorator extends PostDecorator {
+      getData() {
+        const data = this.post.getData();
+        data.createdAt = new Date().toISOString();
+        data.updatedAt = new Date().toISOString();
+        return data;
+      }
+    }
+
+    class SellerDecorator extends PostDecorator {
+      constructor(post, sellerEmail) {
+        super(post);
+        this.sellerEmail = sellerEmail;
+      }
+      getData() {
+        const data = this.post.getData();
+        data.seller = this.sellerEmail;
+        return data;
+      }
+    }
+  </script>
+
+  <script>
+    (function () {
+      const API = 'http://localhost:5000';
+
+      const token   = localStorage.getItem('unimercs_token');
+      const session = JSON.parse(localStorage.getItem('unimercs_current_user') || 'null');
+
+      if (!token || !session) {
+        alert('Debes iniciar sesión para crear una publicación');
+        window.location.href = 'login.html';
+        return;
+      }
+
+      window.addEventListener('DOMContentLoaded', () => {
+        const usernameInput = document.getElementById('product-username');
+        if (usernameInput && session) usernameInput.value = session.name;
+
+        const userInfoDiv  = document.getElementById('user-info');
+        const loginLink    = document.getElementById('login-link');
+        const registerLink = document.getElementById('register-link');
+        const logoutBtn    = document.getElementById('logout-btn');
+        const mLogout      = document.getElementById('m-logout');
+        const mLogin       = document.getElementById('m-login');
+        const mRegister    = document.getElementById('m-register');
+
+        if (session) {
+          userInfoDiv.textContent = `Hola, ${session.name}`;
+          userInfoDiv.style.display = 'block';
+          loginLink.style.display    = 'none';
+          registerLink.style.display = 'none';
+          logoutBtn.style.display    = 'block';
+          if (mLogout)   mLogout.style.display = 'block';
+          if (mLogin)    mLogin.style.display = 'none';
+          if (mRegister) mRegister.style.display = 'none';
+        }
+
+        logoutBtn?.addEventListener('click', (e) => {
+          e.preventDefault();
+          localStorage.removeItem('unimercs_token');
+          localStorage.removeItem('unimercs_current_user');
+          window.location.href = 'index.html';
+        });
+        mLogout?.addEventListener('click', (e) => {
+          e.preventDefault();
+          localStorage.removeItem('unimercs_token');
+          localStorage.removeItem('unimercs_current_user');
+          window.location.href = 'index.html';
+        });
+      });
+
+      const toast = document.getElementById('toast');
+      function showToast(msg) {
+        if (!toast) return;
+        toast.textContent = msg; toast.hidden = false; toast.classList.add('show');
+        setTimeout(() => { toast.classList.remove('show'); setTimeout(() => toast.hidden = true, 300); }, 2500);
+      }
+
+      const imageEl   = document.getElementById('product-image');
+      const previewEl = document.getElementById('image-preview');
+      imageEl?.addEventListener('change', function () {
+        previewEl.innerHTML = '';
+        const file = imageEl.files && imageEl.files[0];
+        if (!file) return;
+        const img = document.createElement('img');
+        previewEl.appendChild(img);
+        const reader = new FileReader();
+        reader.onload = () => { img.src = reader.result; };
+        reader.readAsDataURL(file);
+      });
+
+      const sellForm    = document.getElementById('sell-form');
+      const titleEl     = document.getElementById('product-title');
+      const categoryEl  = document.getElementById('product-category');
+      const stateEl     = document.getElementById('product-state');
+      const priceEl     = document.getElementById('product-price');
+      const errorEl     = document.getElementById('form-error');
+      const submitBtn   = document.getElementById('submit-btn');
+
+      function showError(msg) { errorEl.textContent = msg; errorEl.classList.add('show'); errorEl.style.display = 'block'; }
+      function hideError()    { errorEl.classList.remove('show'); errorEl.style.display = 'none'; }
+
+      sellForm?.addEventListener('submit', async function (e) {
+        e.preventDefault();
+        hideError();
+
+        const title    = titleEl.value.trim();
+        const category = categoryEl.value;
+        const state    = stateEl.value;
+        const priceRaw = priceEl.value.trim();
+        const priceNum = Number(priceRaw.replace(/[^0-9.]/g, ''));
+        const file     = imageEl.files && imageEl.files[0];
+
+        if (!title)                         { showError('Por favor ingresa un título para tu producto'); return; }
+        if (!category)                      { showError('Por favor selecciona una categoría'); return; }
+        if (!priceRaw || isNaN(priceNum) || priceNum <= 0) { showError('Por favor ingresa un precio válido'); return; }
+        if (!file)                          { showError('Por favor sube una imagen de tu producto'); return; }
+
+        submitBtn.disabled = true;
+        submitBtn.classList.add('loading');
+
+        try {
+          /* === PROTOTYPE + DECORATOR === */
+          const proto = new PostPrototype({
+            title,
+            category,
+            price: priceNum,
+            username: session.name,
+            state
+          });
+          let post = proto.withNewId();
+
+          const basePost = new BasePost(post);
+          const withTimestamp = new TimestampDecorator(basePost);
+          const finalPost = new SellerDecorator(withTimestamp, session.email);
+
+          const postData = finalPost.getData();
+
+          const formData = new FormData();
+          formData.append('title', title);
+          formData.append('category', category);
+          formData.append('condition', state);
+          formData.append('price', priceNum);
+          formData.append('image', file);
+
+          const res  = await fetch(`${API}/api/posts`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` },
+            body: formData
+          });
+          const data = await res.json();
+
+          if (!res.ok) throw new Error(data.message || 'Error al crear la publicación');
+
+          postBus.notify({ ...data, ...postData });
+
+          showToast('✓ Publicación creada exitosamente!');
+          submitBtn.textContent = '✓ ¡Publicado!';
+          submitBtn.style.background = 'linear-gradient(90deg,#10b981,#059669)';
+
+          setTimeout(() => {
+            showToast('Redirigiendo al inicio...');
+            setTimeout(() => window.location.href = 'index.html', 800);
+          }, 1500);
+
+        } catch (err) {
+          console.error(err);
+          showError(err.message || 'Error al crear la publicación. Por favor intenta de nuevo.');
+          submitBtn.disabled = false;
+          submitBtn.classList.remove('loading');
+          submitBtn.textContent = 'Crear Publicación';
+        }
+      });
+
+      const profileBtn  = document.getElementById('profile-btn');
+      const profileMenu = document.getElementById('profile-dropdown-menu');
+      profileBtn?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (profileMenu.hasAttribute('hidden')) profileMenu.removeAttribute('hidden');
+        else profileMenu.setAttribute('hidden', '');
+      });
+      document.addEventListener('click', (e) => {
+        if (profileMenu && !profileMenu.contains(e.target) && !profileBtn.contains(e.target))
+          profileMenu.setAttribute('hidden', '');
+      });
+
+      const mobileToggle = document.getElementById('mobile-toggle');
+      const mobileMenu   = document.getElementById('mobile-menu');
+      mobileToggle?.addEventListener('click', function () {
+        const exp = this.getAttribute('aria-expanded') === 'true';
+        this.setAttribute('aria-expanded', String(!exp));
+        if (mobileMenu.hasAttribute('hidden')) mobileMenu.removeAttribute('hidden');
+        else mobileMenu.setAttribute('hidden', '');
+      });
+    })();
   </script>
 </body>
 </html>
