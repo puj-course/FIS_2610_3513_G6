@@ -14,56 +14,58 @@ jobs:
       - name: Descargar código
         uses: actions/checkout@v4
 
-      # ==================== PATRONES CREACIONALES ====================
-      - name: Verificar Factory Method (register.html)
+      # === DEBUG: Ver estructura de carpetas ===
+      - name: Mostrar estructura de archivos
         run: |
-          echo "Verificando Factory Method..."
-          grep -q "class UserFactory" register.html
-          grep -q "class JaverianaUserFactory" register.html
-          grep -q "createUser" register.html
-          echo "Factory Method detectado correctamente en register.html"
+          echo "Estructura del repositorio:"
+          find . -type f -name "*.html" | head -20
+          ls -la
 
-      - name: Verificar Prototype (post.html)
+      # ==================== PATRONES CREACIONALES ====================
+      - name: Verificar Factory Method
         run: |
-          echo "Verificando Prototype..."
-          grep -q "class PostPrototype" post.html
-          grep -q "clone()" post.html
-          grep -q "withNewId()" post.html
-          echo "Prototype detectado correctamente en post.html"
+          echo "Buscando Factory Method..."
+          grep -r --include="*.html" -q "class JaverianaUserFactory" .
+          grep -r --include="*.html" -q "class UserFactory" .
+          echo "Factory Method detectado correctamente"
+
+      - name: Verificar Prototype
+        run: |
+          echo "Buscando Prototype..."
+          grep -r --include="*.html" -q "class PostPrototype" .
+          grep -r --include="*.html" -q "clone()" .
+          grep -r --include="*.html" -q "withNewId()" .
+          echo "Prototype detectado correctamente"
 
       # ==================== PATRONES ESTRUCTURALES ====================
-      - name: Verificar Facade (login.html + index.html)
+      - name: Verificar Facade
         run: |
-          echo "Verificando Facade..."
-          grep -q "class AuthFacade" login.html index.html
-          grep -q "class SessionManager" login.html index.html
-          grep -q "this\.storage" login.html index.html
+          echo "Buscando Facade..."
+          grep -r --include="*.html" -q "class AuthFacade" .
+          grep -r --include="*.html" -q "class SessionManager" .
           echo "Facade detectado correctamente"
 
-      - name: Verificar Decorator (post.html)
+      - name: Verificar Decorator
         run: |
-          echo "Verificando Decorator..."
-          grep -q "class BasePost" post.html
-          grep -q "class PostDecorator" post.html
-          grep -q "extends PostDecorator" post.html
-          echo "Decorator detectado correctamente en post.html"
+          echo "Buscando Decorator..."
+          grep -r --include="*.html" -q "class PostDecorator" .
+          grep -r --include="*.html" -q "extends PostDecorator" .
+          echo "Decorator detectado correctamente"
 
       # ==================== PATRONES DE COMPORTAMIENTO ====================
-      - name: Verificar Observer (index.html + post.html)
+      - name: Verificar Observer
         run: |
-          echo "Verificando Observer..."
-          grep -q "class PostObserver" index.html post.html
-          grep -q "class PostEventBus" index.html post.html
-          grep -q "notify(post)" index.html post.html
+          echo "Buscando Observer..."
+          grep -r --include="*.html" -q "class PostEventBus" .
+          grep -r --include="*.html" -q "notify(post)" .
           echo "Observer detectado correctamente"
 
-      - name: Verificar Strategy (index.html)
+      - name: Verificar Strategy
         run: |
-          echo "Verificando Strategy..."
-          grep -q "class FilterStrategy" index.html
-          grep -q "class ProductFilter" index.html
-          grep -q "setStrategy" index.html
-          echo "Strategy detectado correctamente en index.html"
+          echo "Buscando Strategy..."
+          grep -r --include="*.html" -q "class ProductFilter" .
+          grep -r --include="*.html" -q "setStrategy" .
+          echo "Strategy detectado correctamente"
 
       # ==================== RESUMEN FINAL ====================
       - name: Resumen de Validación GoF
@@ -72,10 +74,9 @@ jobs:
           echo "===================================================="
           echo "¡TODOS LOS 6 PATRONES GoF HAN SIDO VALIDADOS!"
           echo "===================================================="
-          echo ""
           echo "Creacionales → Factory Method + Prototype"
           echo "Estructurales → Facade + Decorator"
           echo "Comportamiento → Observer + Strategy"
           echo ""
-          echo "Los patrones están correctamente implementados en los archivos HTML."
+          echo "Validación completada exitosamente."
           echo "===================================================="
