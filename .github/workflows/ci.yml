@@ -1,89 +1,41 @@
-name: CI - Validate Frontend Code
-# eventos que activan el pipeline
+name: CI - Validación de archivos HTML
+
 on:
   push:
-    branches: [ feature/*, develop ]
+    branches: [ develop, feature/* ]
   pull_request:
     branches: [ develop ]
 
-#trabajo principal del pipeline CI
 jobs:
-  validate:
+  validar-html:
     runs-on: ubuntu-latest
 
-# pasos a seguir del pipeline CI
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Descargar código
+        uses: actions/checkout@v4
 
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '18'
+      - name: Instalar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
 
-    - name: Install HTMLHint
-      run: npm install -g htmlhint
+      - name: Instalar HTMLHint
+        run: npm install -g htmlhint
 
-    - name: Create HTMLHint config (lenient rules)
-      run: |
-        cat > .htmlhintrc << 'EOF'
-        {
-          "tagname-lowercase": false,
-          "attr-lowercase": false,
-          "attr-value-double-quotes": false,
-          "doctype-first": false,
-          "tag-pair": true,
-          "spec-char-escape": true,
-          "id-unique": true,
-          "src-not-empty": true,
-          "attr-no-duplication": true,
-          "title-require": false
-        }
-        EOF
+      - name: Validar todos los archivos HTML
+        run: |
+          echo "Iniciando validación HTML en src/test/html..."
+          htmlhint "src/test/html/**/*.html" || echo "Se encontraron advertencias de formato"
 
-    - name: Validate HTML files (non-failing)
-      run: |
-        htmlhint *.html || echo "⚠️ HTMLHint found issues but continuing"
-        echo "✅ Validation completed"
-
-    - name: Check for broken internal links
-      run: |
-        echo "## Link Check Report" > link-report.md
-        echo "" >> link-report.md
-        echo "| File | Status |" >> link-report.md
-        echo "|------|--------|" >> link-report.md
-        
-        for file in *.html; do
-          echo "Checking $file..."
-          if grep -q "href=" "$file"; then
-            echo "| $file | ✅ Has links |" >> link-report.md
-          else
-            echo "| $file | ⚠️ No links found |" >> link-report.md
-          fi
-        done
-
-    - name: Verify JavaScript syntax
-      run: |
-        echo "## JavaScript Syntax Check" > js-report.md
-        echo "" >> js-report.md
-        
-        for file in *.html; do
-          echo "### $file" >> js-report.md
-          echo '```' >> js-report.md
-          # Extract script content and check for obvious errors
-          grep -A 1000 "<script>" "$file" | grep -B 1000 "</script>" | grep -v "<script>" | grep -v "</script>" | head -50 >> js-report.md
-          echo '```' >> js-report.md
-          echo "" >> js-report.md
-        done
-
-#generar reporte final del proceso del pipeline
-    - name: Generate final report
-      run: |
-        cat link-report.md js-report.md > validation-report.md
-        echo "✅ Report generated"
-
-    - name: Upload validation report
-      uses: actions/upload-artifact@v4
-      with:
-        name: validation-report
-        path: validation-report.md
+      - name: Verificar archivos obligatorios
+        run: |
+          echo "Verificando archivos principales..."
+          BASE_PATH="src/test/html"
+          for file in index.html login.html register.html post.html; do
+            if [ -f "$BASE_PATH/$file" ]; then
+              echo "$file encontrado"
+            else
+              echo "ERROR: $file NO se encuentra en $BASE_PATH"
+              exit 1
+            fi
+          done
