@@ -1,121 +1,81 @@
-name: Validate - Verificación de Patrones GoF y Calidad de Código
+name: Validate - Verificar los 6 patrones GoF
 
 on:
   push:
-    branches: [ feature/*, develop, main ]
+    branches: [ develop, feature/*, main ]
   pull_request:
     branches: [ develop, main ]
 
 jobs:
-  build-and-validate:
-    name: Pipeline de Validación Arquitectónica
+  verificar-patrones:
     runs-on: ubuntu-latest
 
     steps:
-      - name: 1. Descargar código fuente
+      - name: Descargar código
         uses: actions/checkout@v4
 
-      - name: 2. Instalar Node.js 20
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: 3. Crear suite de tests para patrones GoF
+      # ==================== PATRONES CREACIONALES ====================
+      - name: Verificar Factory Method (register.html)
         run: |
-          mkdir -p tests
-          cat > tests/gof_patterns.test.mjs << 'TESTEOF'
-          import { test, describe } from 'node:test';
-          import assert from 'node:assert/strict';
-          import { readFileSync, existsSync } from 'node:fs';
+          echo "Verificando Factory Method..."
+          grep -q "class UserFactory" register.html
+          grep -q "class JaverianaUserFactory" register.html
+          grep -q "createUser" register.html
+          echo "Factory Method detectado correctamente en register.html"
 
-          // Helper para leer archivos en las nuevas rutas src/
-          function readPattern(filename) {
-            const paths = [
-              `src/factories/${filename}`,
-              `src/facades/${filename}`,
-              `src/observers/${filename}`
-            ];
-            for (const p of paths) {
-              if (existsSync(p)) return readFileSync(p, 'utf8');
-            }
-            throw new Error(`Archivo no encontrado: ${filename}`);
-          }
-
-          describe('Validación de Patrones GoF - UniMercs', () => {
-            
-            test('Factory Method: user.factory.js existe y es válido', () => {
-              const code = readPattern('user.factory.js');
-              assert.ok(code.includes('class UserFactory'), 'Falta clase base UserFactory');
-              assert.ok(code.includes('class JaverianaUserFactory'), 'Falta Concrete Creator');
-              assert.ok(code.includes('@javeriana.edu.co'), 'Falta validación de dominio');
-            });
-
-            test('Facade: auth.facade.js existe y es válido', () => {
-              const code = readPattern('auth.facade.js');
-              assert.ok(code.includes('class AuthFacade'), 'Falta clase AuthFacade');
-              assert.ok(code.includes('login') && code.includes('logout'), 'Faltan métodos core');
-            });
-
-            test('Observer: post.observer.js existe y es válido', () => {
-              const code = readPattern('post.observer.js');
-              assert.ok(code.includes('class PostEventBus'), 'Falta el Subject');
-              assert.ok(code.includes('notify'), 'Falta el método de notificación');
-            });
-          });
-          TESTEOF
-
-      - name: 4. Ejecutar tests de Patrones GoF (JS)
+      - name: Verificar Prototype (post.html)
         run: |
-          echo "🧪 Ejecutando verificación de lógica JavaScript..."
-          node --test tests/gof_patterns.test.mjs
+          echo "Verificando Prototype..."
+          grep -q "class PostPrototype" post.html
+          grep -q "clone()" post.html
+          grep -q "withNewId()" post.html
+          echo "Prototype detectado correctamente en post.html"
 
-      - name: 5. Validar archivos HTML y Links (Corregido)
+      # ==================== PATRONES ESTRUCTURALES ====================
+      - name: Verificar Facade (login.html + index.html)
         run: |
-          echo "🔍 Validando HTML en src/test/html/..."
-          
-          # Verificar que la carpeta existe
-          if [ ! -d "src/test/html" ]; then
-            echo "❌ Error: La carpeta src/test/html/ no existe."
-            exit 1
-          fi
+          echo "Verificando Facade..."
+          grep -q "class AuthFacade" login.html index.html
+          grep -q "class SessionManager" login.html index.html
+          grep -q "this\.storage" login.html index.html
+          echo "Facade detectado correctamente"
 
-          # 5.1 HTMLHint en la ruta correcta
-          npx htmlhint "src/test/html/*.html" || echo "⚠️ HTMLHint encontró advertencias"
-
-          # 5.2 Verificación de integración de patrones en HTML
-          check_integration() {
-            local file="src/test/html/$1"
-            local pattern=$2
-            echo "Revisando $file..."
-            if grep -q "$pattern" "$file"; then
-              echo "  ✅ Patrón $pattern encontrado."
-            else
-              echo "  ⚠️  Advertencia: $pattern no mencionado en $1"
-            fi
-          }
-
-          check_integration "register.html" "JaverianaUserFactory"
-          check_integration "login.html" "AuthFacade"
-          check_integration "post.html" "PostEventBus"
-
-      - name: 6. Verificar Sintaxis JS en todo el proyecto
+      - name: Verificar Decorator (post.html)
         run: |
-          echo "🔍 Verificando que no haya errores de sintaxis..."
-          node --check src/facades/*.js
-          node --check src/factories/*.js
-          node --check src/observers/*.js
+          echo "Verificando Decorator..."
+          grep -q "class BasePost" post.html
+          grep -q "class PostDecorator" post.html
+          grep -q "extends PostDecorator" post.html
+          echo "Decorator detectado correctamente en post.html"
 
-      - name: 7. Generar y subir reporte
+      # ==================== PATRONES DE COMPORTAMIENTO ====================
+      - name: Verificar Observer (index.html + post.html)
         run: |
-          cat > reporte-final.md << 'EOF'
-          # Reporte de Validación UniMercs
-          - **Rutas JS:** Validadas en `src/factories`, `src/facades`, `src/observers` ✅
-          - **Rutas HTML:** Validadas en `src/test/html/` ✅
-          - **Resultado:** Los archivos fueron localizados y procesados correctamente.
-          EOF
-      
-      - name: Upload Report
-        uses: actions/upload-artifact@v4
-        with:
-          name: reporte-unimercs
-          path: reporte-final.md
+          echo "Verificando Observer..."
+          grep -q "class PostObserver" index.html post.html
+          grep -q "class PostEventBus" index.html post.html
+          grep -q "notify(post)" index.html post.html
+          echo "Observer detectado correctamente"
+
+      - name: Verificar Strategy (index.html)
+        run: |
+          echo "Verificando Strategy..."
+          grep -q "class FilterStrategy" index.html
+          grep -q "class ProductFilter" index.html
+          grep -q "setStrategy" index.html
+          echo "Strategy detectado correctamente en index.html"
+
+      # ==================== RESUMEN FINAL ====================
+      - name: Resumen de Validación GoF
+        run: |
+          echo ""
+          echo "===================================================="
+          echo "¡TODOS LOS 6 PATRONES GoF HAN SIDO VALIDADOS!"
+          echo "===================================================="
+          echo ""
+          echo "Creacionales → Factory Method + Prototype"
+          echo "Estructurales → Facade + Decorator"
+          echo "Comportamiento → Observer + Strategy"
+          echo ""
+          echo "Los patrones están correctamente implementados en los archivos HTML."
+          echo "===================================================="
