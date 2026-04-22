@@ -1,4 +1,4 @@
-name: CI - Validación de archivos HTML
+name: CI - Validación de archivos HTML completos
 
 on:
   push:
