@@ -1,5 +1,5 @@
 /**
- * PRUEBAS UNITARIAS del patron facade
+ * PRUEBAS UNITARIAS DEL PATRON FACADE
  * Integrantes: Juan Pablo Sánchez, German Rodríguez
  */
 
