@@ -1,9 +1,22 @@
 /**
- * PRUEBAS UNITARIAS DEL PATRON FACADE
- * Integrantes: Juan Pablo Sánchez, German Rodríguez
+ * PRUEBAS UNITARIAS patron facade
+ * Integrantes: Juan Pablo Sanchez, German Rodriguez
  */
 
-// Definimos las clases directamente en la prueba HICIMOS ESTO PARA NO TENER QUE METERLE IMPORTS POR MONTONES
+class LocalStorageMock {
+  constructor() {
+    this.store = {};
+  }
+  clear() { this.store = {}; }
+  getItem(key) { return this.store[key] || null; }
+  setItem(key, value) { this.store[key] = String(value); }
+  removeItem(key) { delete this.store[key]; }
+}
+
+
+global.localStorage = new LocalStorageMock();
+
+
 class UserStorage {
   getAll() { return JSON.parse(localStorage.getItem('unimercs_users') || '[]'); }
   findByEmail(email) { return this.getAll().find(u => u.email === email.toLowerCase()) || null; }
@@ -56,7 +69,7 @@ describe('Patrón Facade - AuthFacade', () => {
     localStorage.setItem('unimercs_users', JSON.stringify(users));
   });
 
-  // PRUEBAS POSITIVAS (AQUI SALEN LAS QUE NO DEBERIAN TIRAR ERROR)
+  // Pruebas positivas
   test('CP-FACADE-01: Login con credenciales válidas debe retornar sesión', () => {
     const session = authFacade.login(testUser.email, 'Password123!');
     expect(session).toBeDefined();
@@ -74,7 +87,7 @@ describe('Patrón Facade - AuthFacade', () => {
     expect(authFacade.getSession()).toEqual(session);
   });
 
-  // PRUEBAS NEGATIVAS (AQUI SALE LOS ERRORES)
+  // Pruebas negativas
   test('CP-FACADE-04: Login con usuario inexistente debe lanzar error', () => {
     expect(() => {
       authFacade.login('noexiste@javeriana.edu.co', 'cualquierpass');
@@ -93,7 +106,6 @@ describe('Patrón Facade - AuthFacade', () => {
     }).toThrow('No existe una cuenta con ese correo');
   });
 
-  // PRUEBAS DE BORDE
   test('CP-FACADE-07: Login con contraseña vacía debe lanzar error', () => {
     expect(() => {
       authFacade.login(testUser.email, '');

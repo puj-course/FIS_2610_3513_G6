@@ -1,6 +1,6 @@
 /**
- * PRUEBAS UNITARIAS del patron prototype
- * Integrantes: Juan Pablo Sánchez, German Rodríguez.
+ * PRUEBAS UNITARIAS Patron prototype)
+ * Integrantes: Juan Pablo Sanchez, German Rodriguez
  */
 
 class PostPrototype {
@@ -16,7 +16,7 @@ class PostPrototype {
   }
   withNewId() {
     const copy = this.clone();
-    copy.id = String(Date.now());
+    copy.id = String(Date.now()) + '-' + String(Math.random()).substring(2, 8);
     copy.createdAt = new Date().toISOString();
     return copy;
   }
@@ -32,7 +32,6 @@ describe('Patrón Prototype - Clonación de Publicaciones', () => {
     });
   });
 
-  // PRUEBAS POSITIVAS (no deberian salir errores)
   test('CP-PROTOTYPE-01: clone() debe crear un objeto idéntico', () => {
     const cloned = originalPost.clone();
     expect(cloned.title).toBe(originalPost.title);
@@ -73,7 +72,6 @@ describe('Patrón Prototype - Clonación de Publicaciones', () => {
     expect(newPost.price).toBe(originalPost.price);
   });
 
-  // PRUEBAS DE BORDE
   test('CP-PROTOTYPE-07: Clonar con imagen vacía funciona', () => {
     const postSinImagen = new PostPrototype({
       title: 'Sin foto', category: 'books', price: 50000,
