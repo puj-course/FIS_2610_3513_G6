@@ -20,20 +20,12 @@ jobs:
         with:
           node-version: '20'
       
-      - name: Instalar dependencias (npm install en lugar de npm ci)
+      - name: Instalar dependencias
         run: npm install
       
       - name: Ejecutar pruebas unitarias
-        run: npm src/test/unit
+        run: npm test
         continue-on-error: false
-      
-      - name: Generar reporte de cobertura
-        run: |
-          echo "# Reporte de Pruebas Unitarias" > src/test/reports/summary.md
-          echo "Ejecutado: $(date)" >> src/test/reports/summary.md
-          echo "" >> src/test/reports/summary.md
-          echo "## Resultados" >> src/test/reports/summary.md
-          echo "- Las pruebas se ejecutaron correctamente" >> src/test/reports/summary.md
       
       - name: Subir reportes como artefactos
         uses: actions/upload-artifact@v4
@@ -41,5 +33,5 @@ jobs:
           name: test-reports
           path: |
             src/test/reports/
-            sec/test/coverage/
+            src/test/coverage/
           retention-days: 30
