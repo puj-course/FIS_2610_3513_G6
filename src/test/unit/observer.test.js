@@ -19,7 +19,7 @@ class FeedUpdater {
   }
 }
 
-describe('🧪 Patrón Observer - Sistema de Notificaciones', () => {
+describe('Patrón Observer - Sistema de Notificaciones', () => {
   let eventBus;
   let mockPost;
 
