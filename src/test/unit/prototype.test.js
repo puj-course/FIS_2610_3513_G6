@@ -1,6 +1,6 @@
 /**
  * PRUEBAS UNITARIAS del patron prototype
- * Integrantes: Juan Pablo Sánchez, German Rodríguez
+ * Integrantes: Juan Pablo Sánchez, German Rodríguez.
  */
 
 class PostPrototype {
