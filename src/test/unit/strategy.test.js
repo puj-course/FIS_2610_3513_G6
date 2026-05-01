@@ -78,12 +78,11 @@ describe('Patrón Strategy - Sistema de Filtros', () => {
     expect(result[0].title).toBe('iPhone 15 Pro');
   });
 
-  test('CP-STRATEGY-06: Filtrar por precio mínimo 1,000,000 debe retornar productos caros', () => {
+    test('CP-STRATEGY-06: Filtrar por precio mínimo 5,000,000 debe retornar productos muy caros', () => {
     const filter = new PriceRangeFilter();
-    const result = filter.filter(mockProducts, { min: 1000000 });
-    // Solo iPhone (5M) y MacBook (8M) cumplen, Samsung (4.5M) no
+    const result = filter.filter(mockProducts, { min: 5000000 });
     expect(result).toHaveLength(2);
-    expect(result.every(p => p.price >= 1000000)).toBe(true);
+    expect(result.every(p => p.price >= 5000000)).toBe(true);
   });
 
   test('CP-STRATEGY-07: Filtrar por precio máximo 100,000 debe retornar productos baratos', () => {
