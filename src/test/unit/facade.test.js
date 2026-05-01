@@ -39,7 +39,7 @@ class AuthFacade {
   isLoggedIn() { return this.session.isActive(); }
 }
 
-describe('🧪 Patrón Facade - AuthFacade', () => {
+describe('Patrón Facade - AuthFacade', () => {
   let authFacade;
   let testUser;
 
