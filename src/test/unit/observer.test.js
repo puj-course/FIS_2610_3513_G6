@@ -1,9 +1,20 @@
 /**
- * PRUEBAS UNITARIAS del patron observer
- * Integrantes: Juan Pablo Sánchez, German Rodríguez
+ * PRUEBAS UNITARIAS  patron observer
+ * Integrantes: Juan Pablo Sanchez, German Rodriguez
  */
 
-// Definición de las clases Observer (para ahorrar muchos imports)
+
+class LocalStorageMock {
+  constructor() { this.store = {}; }
+  clear() { this.store = {}; }
+  getItem(key) { return this.store[key] || null; }
+  setItem(key, value) { this.store[key] = String(value); }
+  removeItem(key) { delete this.store[key]; }
+}
+
+global.localStorage = new LocalStorageMock();
+
+
 class PostEventBus {
   constructor() { this.observers = []; }
   subscribe(observer) { this.observers.push(observer); }
@@ -29,7 +40,6 @@ describe('Patrón Observer - Sistema de Notificaciones', () => {
     mockPost = { id: '123', title: 'iPhone 15 Pro', price: 5000000, username: 'juan' };
   });
 
-  // PRUEBAS POSITIVAS (pruebas que no deberian salir errores
   test('CP-OBSERVER-01: Observer suscrito debe recibir notificación', () => {
     const mockObserver = { update: jest.fn() };
     eventBus.subscribe(mockObserver);
@@ -60,7 +70,6 @@ describe('Patrón Observer - Sistema de Notificaciones', () => {
     expect(storedPosts[0].id).toBe(mockPost.id);
   });
 
-  // PRUEBAS NEGATIVAS (osea pruebas que debe salir un error)
   test('CP-OBSERVER-04: Desuscribir observer debe evitar notificaciones', () => {
     const mockObserver = { update: jest.fn() };
     eventBus.subscribe(mockObserver);
@@ -69,7 +78,6 @@ describe('Patrón Observer - Sistema de Notificaciones', () => {
     expect(mockObserver.update).not.toHaveBeenCalled();
   });
 
-  // PRUEBAS DE BORDE
   test('CP-OBSERVER-05: Notificar sin observers no debe causar error', () => {
     expect(() => { eventBus.notify(mockPost); }).not.toThrow();
   });
