@@ -1,49 +1,35 @@
-name: CI - Validación de archivos HTML completos
+name: CI - Pruebas Unitarias
 
 on:
   push:
-    branches: [ develop, feature/* ]
+    branches: [ main, develop ]
   pull_request:
-    branches: [ develop ]
+    branches: [ main, develop ]
+  workflow_dispatch:
 
 jobs:
-  validar-html:
+  test:
     runs-on: ubuntu-latest
-
+    
     steps:
-      - name: Descargar código
-        uses: actions/checkout@v4
-
-      - name: Instalar Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-node@v4
         with:
           node-version: '20'
-
-      - name: Instalar HTMLHint
-        run: npm install -g htmlhint
-
-      - name: Validar todos los archivos HTML
-        run: |
-          echo "Iniciando validación HTML en src/test/html/..."
-          
-          # Validar todos los archivos .html dentro de la carpeta
-          htmlhint "src/test/html/**/*.html" || echo "Se encontraron advertencias de formato"
-
-          echo "Validación HTML terminada"
-
-      - name: Verificar archivos obligatorios
-        run: |
-          echo "Verificando archivos principales..."
-          
-          BASE_PATH="src/test/html"
-          
-          for file in index.html login.html register.html post.html; do
-            if [ -f "$BASE_PATH/$file" ]; then
-              echo "$file encontrado"
-            else
-              echo "ERROR: $file NO se encuentra en $BASE_PATH"
-              exit 1
-            fi
-          done
-          
-          echo "✅ Todos los archivos principales están presentes"
+      
+      - name: Instalar dependencias
+        run: npm ci
+      
+      - name: Ejecutar pruebas unitarias
+        run: npm test
+        continue-on-error: false
+      
+      - name: Subir reportes
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: |
+            test/reports/
+            test/coverage/
+          retention-days: 30
