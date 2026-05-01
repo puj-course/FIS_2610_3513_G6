@@ -1,7 +1,7 @@
 {
   "name": "unimercs",
   "version": "1.0.0",
-  "description": "Unimercs pruebas unitarias para patrones",
+  "description": "Unimercs con patrones de diseño",
   "main": "index.js",
   "scripts": {
     "test": "jest --coverage --verbose",
