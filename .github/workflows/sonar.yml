@@ -4,27 +4,38 @@ on:
   push:
     branches: [ main, develop ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, develop ]
+  workflow_dispatch:
 
 jobs:
   sonar:
     runs-on: ubuntu-latest
+    
     steps:
-      - uses: actions/checkout@v4
+      - name: Clonar repositorio
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
       
-      - uses: actions/setup-node@v4
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: '20'
       
       - name: Instalar dependencias
-        run: npm ci
+        run: npm install
       
       - name: Ejecutar pruebas con cobertura
         run: npm run test:ci
+        continue-on-error: false
       
       - name: Análisis SonarCloud
         uses: SonarSource/sonarcloud-github-action@v2
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          args: >
+            -Dsonar.organization=${{ secrets.SONAR_ORG }}
+            -Dsonar.projectKey=${{ secrets.SONAR_PROJECT_KEY }}
+            -Dsonar.javascript.lcov.reportPaths=src/test/coverage/lcov.info
+            -Dsonar.testExecutionReportPaths=src/test/reports/junit.xml
