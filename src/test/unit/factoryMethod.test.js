@@ -1,5 +1,5 @@
 /**
- * PRUEBAS UNITARIAS patron factoryMethod
+ * PRUEBAS UNITARIAS Patron factoryMethod
  * Integrantes: Juan Pablo Sanchez, German Rodriguez
  */
 
@@ -13,7 +13,7 @@ class User {
 class StudentUser extends User {
   constructor(data) { super({ ...data, role: 'student' }); }
   validate() { 
-    if (!this.email.includes('@javeriana.edu.co')) {
+    if (!this.email.endsWith('javeriana.edu.co')) {
       throw new Error('Solo se permiten correos @javeriana.edu.co');
     }
   }
@@ -21,14 +21,14 @@ class StudentUser extends User {
 
 class JaverianaUserFactory {
   createUser(data) {
-    if (!data.email.includes('@javeriana.edu.co')) {
+    if (!data.email.endsWith('javeriana.edu.co')) {
       throw new Error('Solo se permiten correos @javeriana.edu.co');
     }
     return new StudentUser(data);
   }
   register(data) {
     const user = this.createUser({
-      id: String(Date.now() + Math.random()), // Aseguramos IDs únicos
+      id: String(Date.now() + Math.random()),
       name: data.name, 
       email: data.email.toLowerCase(),
       passwordHash: btoa(data.password + '_salt'), 
