@@ -1,1 +1,189 @@
+name: CD - Empaquetado y Optimización para Despliegue
 
+# Eventos que activan este pipeline son:
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ develop ]
+  workflow_dispatch:  # Permite ejecución manual desde GitHub
+
+# Trabajo principal del pipeline
+jobs:
+  construir-y-empaquetar:
+    runs-on: ubuntu-latest  # Máquina virtual donde se ejecuta
+
+    # Pasos del pipeline
+    steps:
+      # Paso 1: Descargar el código del repositorio
+      - name: 1. Descargar código fuente
+        uses: actions/checkout@v4
+
+      # Paso 2: Instalar Node.js
+      - name: 2. Instalar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      # Paso 3: Instalar herramientas de construcción 
+      - name: 3. Instalar herramientas de build (minificadores)
+        run: |
+          echo "Instalando herramientas de optimización..."
+          npm install -g html-minifier-terser
+          npm install -g uglify-js
+          npm install -g clean-css-cli
+          echo "Herramientas instaladas correctamente"
+
+      # Paso 4: Construir / Optimizar los archivos
+      - name: 4. Construir y optimizar archivos (como mvn clean package)
+        run: |
+          echo "Iniciando proceso de construcción..."
+          echo ""
+          
+          # Crear carpeta de destino (similar a target/ en Maven)
+          mkdir -p dist
+          
+          echo "Procesando archivos HTML..."
+          # Minificar cada archivo HTML
+          for archivo in index.html login.html register.html post.html; do            
+          if [ -f "$archivo" ]; then
+              html-minifier-terser --collapse-whitespace --remove-comments --minify-css true --minify-js true "$archivo" -o "dist/$archivo"
+              echo "  Minificado: $archivo"
+            fi
+          done
+          
+          echo ""
+          echo "Procesando archivos CSS..."
+          # Minificar archivos CSS si existen
+          if ls *.css 2>/dev/null; then
+            for archivo in *.css; do
+              cleancss -o "dist/${archivo%.css}.min.css" "$archivo"
+              echo "  Minificado: $archivo -> ${archivo%.css}.min.css"
+            done
+          else
+            echo "  No se encontraron archivos CSS"
+          fi
+          
+          echo ""
+          echo "Procesando archivos JavaScript..."
+          # Minificar archivos JS si existen como archivos separados
+          if ls *.js 2>/dev/null; then
+            for archivo in *.js; do
+              uglifyjs "$archivo" -o "dist/${archivo%.js}.min.js"
+              echo "  Minificado: $archivo -> ${archivo%.js}.min.js"
+            done
+          else
+            echo "  JavaScript está dentro de los archivos HTML (ya procesado)"
+          fi
+
+      # Paso 5: Copiar recursos estáticos
+      - name: 5. Copiar recursos estáticos (assets)
+        run: |
+          echo "Copiando recursos estáticos..."
+          if [ -d "assets" ]; then
+            cp -r assets dist/
+            echo "  Carpeta 'assets' copiada correctamente"
+          else
+            echo "  No se encontró carpeta 'assets'"
+          fi
+          
+          if [ -d "images" ]; then
+            cp -r images dist/
+            echo "  Carpeta 'images' copiada correctamente"
+          fi
+
+      # Paso 6: Generar manifiesto de construcción (similar a MANIFEST.MF en JAR)
+      - name: 6. Generar manifiesto de construcción
+        run: |
+          echo "Generando manifiesto del build..."
+          cat > dist/manifest.json << 'EOF'
+          {
+            "nombre_proyecto": "UniMercs",
+            "version": "1.0.0",
+            "fecha_construccion": "$(date -Iseconds)",
+            "entorno": "produccion",
+            "herramienta": "GitHub Actions CD Pipeline"
+          }
+          EOF
+          echo "  Manifiesto creado: dist/manifest.json"
+
+      # Paso 7: Empaquetar como ZIP (equivalente al JAR/WAR en Java)
+      - name: 7. Empaquetar artefacto en ZIP
+        run: |
+          echo "Creando paquete de despliegue..."
+          cd dist
+          zip -r ../unimercs-frontend-optimizado.zip .
+          cd ..
+          echo "  Paquete creado: unimercs-frontend-optimizado.zip"
+          echo "  Tamaño del paquete: $(du -h unimercs-frontend-optimizado.zip | cut -f1)"
+
+      # Paso 8: Generar reporte comparativo (original vs optimizado)
+      - name: 8. Generar reporte de construcción
+        run: |
+          echo "Generando reporte de construcción..."
+          
+          cat > reporte-build.md << 'EOF'
+          # REPORTE DE CONSTRUCCIÓN - UniMercs
+          
+          ## Información del paquete
+          
+          | Item | Valor |
+          |------|-------|
+          | Nombre del paquete | unimercs-frontend-optimizado.zip |
+          | Fecha de construcción | $(date) |
+          | Pipeline | CD - Empaquetado para Despliegue |
+          
+          ## Archivos incluidos
+          
+          EOF
+          
+          echo "### Archivos en el paquete:" >> reporte-build.md
+          echo '```' >> reporte-build.md
+          unzip -l unimercs-frontend-optimizado.zip >> reporte-build.md
+          echo '```' >> reporte-build.md
+          
+          echo "" >> reporte-build.md
+          echo "## Comparación de tamaños" >> reporte-build.md
+          echo "" >> reporte-build.md
+          echo "| Tipo | Tamaño |" >> reporte-build.md
+          echo "|------|--------|" >> reporte-build.md
+          echo "| Original (sin optimizar) | $(du -sh . | cut -f1)" >> reporte-build.md
+          echo "| Optimizado (ZIP) | $(du -sh unimercs-frontend-optimizado.zip | cut -f1)" >> reporte-build.md
+          
+          echo "" >> reporte-build.md
+          echo "## Estado" >> reporte-build.md
+          echo "- [x] Construcción completada" >> reporte-build.md
+          echo "- [x] Optimización aplicada" >> reporte-build.md
+          echo "- [x] Empaquetado exitoso" >> reporte-build.md
+          
+          echo "  Reporte generado: reporte-build.md"
+
+      # Paso 9: Subir el artefacto generado
+      - name: 9. Subir artefacto de despliegue
+        uses: actions/upload-artifact@v4
+        with:
+          name: unimercs-despliegue
+          path: unimercs-frontend-optimizado.zip
+          retention-days: 7
+
+      # Paso 10: Subir el reporte de construcción
+      - name: 10. Subir reporte de construcción
+        uses: actions/upload-artifact@v4
+        with:
+          name: reporte-construccion
+          path: reporte-build.md
+          retention-days: 7
+
+      # Paso 11: Mensaje final de éxito
+      - name: 11. Finalizar y mostrar resumen
+        run: |
+          echo ""
+          echo "=========================================="
+          echo "   PIPELINE CD COMPLETADO EXITOSAMENTE"
+          echo "=========================================="
+          echo ""
+          echo "Artefacto generado: unimercs-frontend-optimizado.zip"
+          echo "Tamaño: $(du -h unimercs-frontend-optimizado.zip | cut -f1)"
+          echo "Reporte: reporte-build.md"
+          echo ""
+          echo "El paquete está listo para desplegar"
