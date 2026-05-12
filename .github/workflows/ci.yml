@@ -1,1 +1,37 @@
+name: CI - Pruebas Unitarias
 
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Clonar repositorio
+        uses: actions/checkout@v4
+      
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Instalar dependencias
+        run: npm install
+      
+      - name: Ejecutar pruebas unitarias
+        run: npm test
+        continue-on-error: false
+      
+      - name: Subir reportes como artefactos
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: |
+            src/test/reports/
+            src/test/coverage/
+          retention-days: 30

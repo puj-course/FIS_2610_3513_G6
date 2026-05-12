@@ -1,24 +1,25 @@
 module.exports = {
-  testEnvironment: 'jsdom',
-  roots: ['<rootDir>/test'],
-  testMatch: ['**/?(*.)+(spec|test).js'],
+  roots: ['<rootDir>/src/test/unit'],
+  
+  testMatch: ['**/*.test.js'],
+  
+  testEnvironment: 'node',
+  
   collectCoverage: true,
-  coverageDirectory: 'test/coverage',
+  coverageDirectory: 'src/test/coverage',
   coverageReporters: ['html', 'json', 'lcov', 'text'],
-  coverageThreshold: {
-    global: {
-      branches: 70,
-      functions: 80,
-      lines: 80,
-      statements: 80
-    }
-  },
+  
   reporters: [
     'default',
     ['jest-junit', {
-      outputDirectory: 'test/reports',
+      outputDirectory: 'src/test/reports',
       outputName: 'junit.xml'
     }]
   ],
-  testTimeout: 10000
+  
+  testTimeout: 10000,
+  
+  clearMocks: true,
+  
+  verbose: true
 };

@@ -1,10 +1,10 @@
 {
   "name": "unimercs",
   "version": "1.0.0",
-  "description": "Unimercs pruebas unitarias para patrones",
-  "main": "index.js",
+  "description": "Unimercs ",
   "scripts": {
-    "test": "jest --coverage --verbose",
+    "test": "jest",
+    "test:coverage": "jest --coverage",
     "test:ci": "jest --ci --coverage --testResultsProcessor jest-junit"
   },
   "devDependencies": {
