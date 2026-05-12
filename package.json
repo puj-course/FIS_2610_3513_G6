@@ -1,7 +1,7 @@
 {
   "name": "unimercs",
   "version": "3.0.0",
-  "description": "unimercs",
+  "description": "unimercs- marketplace para la javeriana",
   "main": "server.js",
   "scripts": {
     "start": "node unimercs-backend/server.js",
