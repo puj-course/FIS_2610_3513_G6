@@ -33,21 +33,18 @@ jobs:
           find . -type f | grep coverage
 
       - name: Verificar umbral de cobertura >70%
+        shell: bash
         run: |
-          COVERAGE=$(node -p "require('./src/test/coverage/coverage-summary.json').total.lines.pct")
+          COVERAGE=$(node -e "console.log(require('./src/test/coverage/coverage-summary.json').total.lines.pct)")
 
-          echo "Cobertura de líneas: $COVERAGE%"
+          echo "Cobertura de líneas: ${COVERAGE}%"
 
-          node -e "
-            const coverage = Number(process.argv[1]);
-
-            if (coverage < 70) {
-              console.error('ERROR: Cobertura ' + coverage + '% < 70%');
-              process.exit(1);
-            } else {
-              console.log('OK: Cobertura ' + coverage + '% >= 70%');
-            }
-          " "$COVERAGE"console.log('OK: Cobertura $COVERAGE% >= 70%'); }"
+          if (( $(echo "$COVERAGE < 70" | bc -l) )); then
+            echo "ERROR: Cobertura ${COVERAGE}% < 70%"
+            exit 1
+          else
+            echo "OK: Cobertura ${COVERAGE}% >= 70%"
+          fi
 
       - name: Subir reportes como artefactos
         uses: actions/upload-artifact@v4
