@@ -1,4 +1,4 @@
-name: CI - Pruebas Unitarias
+name: CI - Pruebas Unitarias y Cobertura
 
 on:
   push:
@@ -10,28 +10,68 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    
     steps:
       - name: Clonar repositorio
         uses: actions/checkout@v4
-      
+        with:
+          fetch-depth: 0   
+
       - name: Configurar Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-      
+          cache: 'npm'
+
       - name: Instalar dependencias
         run: npm install
-      
-      - name: Ejecutar pruebas unitarias
-        run: npm test
+
+      - name: Ejecutar pruebas unitarias con cobertura
+        run: npm run test:ci
         continue-on-error: false
-      
+
+      - name: Verificar umbral de cobertura >70%
+        run: |
+          COVERAGE=$(cat src/test/coverage/coverage-summary.json \
+            | node -e "const d=require('fs').readFileSync('/dev/stdin','utf8'); \
+              const j=JSON.parse(d); \
+              console.log(j.total.lines.pct)")
+          echo "Cobertura de líneas: $COVERAGE%"
+          node -e "if($COVERAGE < 70){ console.error('ERROR: Cobertura $COVERAGE% < 70%'); process.exit(1); } else { console.log('OK: Cobertura $COVERAGE% >= 70%'); }"
+
       - name: Subir reportes como artefactos
         uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: test-reports
           path: |
             src/test/reports/
             src/test/coverage/
           retention-days: 30
+
+  sonarcloud:
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+      - name: Clonar repositorio
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Instalar dependencias
+        run: npm install
+
+      - name: Ejecutar pruebas con cobertura (para Sonar)
+        run: npm run test:ci
+
+      - name: Analizar con SonarCloud
+        uses: SonarSource/sonarqube-scan-action@fd88b7d7ccbaefd23d8f36f73b59db7a3d246602
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
