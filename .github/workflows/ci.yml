@@ -28,6 +28,9 @@ jobs:
       - name: Ejecutar pruebas unitarias con cobertura
         run: npm run test:ci
         continue-on-error: false
+      - name: Ver archivos generados
+        run: |
+          find . -type f | grep coverage
 
       - name: Verificar umbral de cobertura >70%
         run: |
