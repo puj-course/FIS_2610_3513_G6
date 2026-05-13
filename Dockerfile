@@ -2,7 +2,7 @@ FROM node:20-alpine AS base
 WORKDIR /app
 
 COPY package*.json ./
-RUN npm ci --omit=dev
+RUN npm install --omit=dev
 
 FROM node:20-alpine
 WORKDIR /app
@@ -17,6 +17,6 @@ RUN mkdir -p uploads && chown -R appuser:appgroup /app
 
 USER appuser
 
-EXPOSE 3000
+EXPOSE 5000
 
 CMD ["node", "server.js"]
