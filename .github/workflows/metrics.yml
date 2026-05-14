@@ -1,0 +1,53 @@
+name: Métricas de Calidad - Análisis Propio + SonarCloud
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+
+jobs:
+  metricas-propias:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Clonar repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Instalar dependencias del proyecto
+        run: npm install
+
+      - name: Ejecutar métricas propias (CC, comentarios, tamaño)
+        run: |
+          echo "════════════════════════════════════════"
+          echo "   MÉTRICAS PROPIAS - UniMercs"
+          echo "════════════════════════════════════════"
+          node metrics.js ./unimercs-backend 2>&1 | tee metricas-reporte.txt
+          echo "════════════════════════════════════════"
+
+      - name: Verificar funciones con complejidad ciclomática >10
+        run: |
+          node -e "
+            const { generarReporte } = require('./metrics.js');
+            const resultados = generarReporte('./unimercs-backend');
+            const alta = resultados.filter(r => r.complejidadCiclomatica > 10);
+            if (alta.length > 0) {
+              console.warn('ADVERTENCIA: ' + alta.length + ' archivos con CC > 10:');
+              alta.forEach(r => console.warn('  - ' + r.archivo + ': CC=' + r.complejidadCiclomatica));
+            } else {
+              console.log('OK: Ningún archivo supera CC=10');
+            }
+          "
+
+      - name: Subir reporte de métricas
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: metricas-calidad
+          path: metricas-reporte.txt
+          retention-days: 30
