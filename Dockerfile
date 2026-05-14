@@ -8,7 +8,7 @@ RUN npm install --omit=dev
 
 COPY unimercs-backend/ ./unimercs-backend/
 
-COPY .env* . 2>/dev/null || true
+COPY .env* ./
 
 RUN mkdir -p uploads
 
