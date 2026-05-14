@@ -1,19 +1,47 @@
-name: Build
+name: Build - SonarQube Analysis
+
 on:
   push:
-    branches:
-      - main
+    branches: [ main, develop ]
   pull_request:
     types: [opened, synchronize, reopened]
+
 jobs:
   sonarqube:
     name: SonarQube
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - name: Clonar repositorio
+        uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
+          fetch-depth: 0
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Instalar dependencias
+        run: npm install
+
+      - name: Ejecutar pruebas y generar cobertura
+        run: |
+          mkdir -p src/test/reports src/test/coverage
+          npm run test:ci
+        env:
+          JEST_JUNIT_OUTPUT_DIR: src/test/reports
+          JEST_JUNIT_OUTPUT_NAME: junit.xml
+
+      - name: Verificar que los reportes existen
+        run: |
+          echo "Verificando reportes generados..."
+          ls -la src/test/coverage/ || echo "carpeta coverage vacía"
+          ls -la src/test/reports/  || echo "carpeta reports vacía"
+          [ -f src/test/coverage/lcov.info ] && echo "lcov.info existe" || echo "lcov.info no encontrado"
+          [ -f src/test/reports/junit.xml ]  && echo "junit.xml existe"  || echo "junit.xml no encontrado"
+
       - name: SonarQube Scan
-        uses: SonarSource/sonarqube-scan-action@fd88b7d7ccbaefd23d8f36f73b59db7a3d246602 # v6.0.0
+        uses: SonarSource/sonarqube-scan-action@v5
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
