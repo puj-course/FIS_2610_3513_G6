@@ -1,22 +1,15 @@
-FROM node:20-alpine AS base
+FROM node:20-alpine
+
 WORKDIR /app
 
-COPY package*.json ./
+COPY unimercs-backend/package*.json ./
 RUN npm install --omit=dev
 
-FROM node:20-alpine
-WORKDIR /app
+COPY unimercs-backend/ .
 
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
-
-COPY --from=base /app/node_modules ./node_modules
-
-COPY . .
-
 RUN mkdir -p uploads && chown -R appuser:appgroup /app
 
 USER appuser
-
 EXPOSE 5000
-
-CMD ["node", "server.js"]
+CMD ["npm", "start"]
