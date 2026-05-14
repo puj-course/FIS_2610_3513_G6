@@ -1,9 +1,10 @@
-const express = require('express');
-const router  = express.Router();
-const multer  = require('multer');
-const path    = require('path');
-const Post    = require('../models/post');
-const protect = require('../middleware/auth');
+const express  = require('express');
+const router   = express.Router();
+const multer   = require('multer');
+const path     = require('path');
+const Post     = require('../models/post');
+const protect  = require('../middleware/auth');
+const notifier = require('../services/telegram');
 
 const storage = multer.diskStorage({
   destination: 'uploads/',
@@ -26,6 +27,7 @@ router.get('/', async (req, res) => {
   }
 });
 
+
 router.post('/', protect, upload.single('image'), async (req, res) => {
   try {
     const { title, category, condition, price } = req.body;
@@ -42,6 +44,10 @@ router.post('/', protect, upload.single('image'), async (req, res) => {
       price: Number(price),
       imageUrl
     });
+
+    notifier.notifyNewPost(post).catch(err =>
+      console.error('[Telegram] Fallo al notificar nuevo post:', err.message)
+    );
 
     res.status(201).json(post);
   } catch (err) {
