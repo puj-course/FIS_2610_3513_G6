@@ -7,19 +7,13 @@ module.exports = {
   coverageDirectory: 'src/test/coverage',
   coverageReporters: ['html', 'json', 'lcov', 'text', 'json-summary'],
 
-  collectCoverageFrom: [
-    'src/test/unit/**/*.test.js',
-    '!**/node_modules/**'
-  ],
+
+  forceCoverageMatch: ['**/*.test.js'],
+
+  collectCoverageFrom: undefined,
 
   reporters: [
-    'default',
-    ['jest-junit', {
-      outputDirectory: 'src/test/reports',
-      outputName: 'junit.xml',
-      classNameTemplate: '{classname}',
-      titleTemplate: '{title}'
-    }]
+    'default'
   ],
 
   testTimeout: 10000,
