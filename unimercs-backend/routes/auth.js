@@ -1,10 +1,10 @@
-const express = require('express');
-const router  = express.Router();
-const bcrypt  = require('bcryptjs');
-const jwt     = require('jsonwebtoken');
-const User    = require('../models/User');
+const express  = require('express');
+const router   = express.Router();
+const bcrypt   = require('bcryptjs');
+const jwt      = require('jsonwebtoken');
+const User     = require('../models/user');
+const notifier = require('../services/telegram');
 
-// POST /api/auth/register
 router.post('/register', async (req, res) => {
   try {
     const { name, email, password, university } = req.body;
@@ -23,13 +23,16 @@ router.post('/register', async (req, res) => {
       { expiresIn: '7d' }
     );
 
+    notifier.notifyNewUser({ name, email }).catch(err =>
+      console.error('[Telegram] Fallo al notificar nuevo usuario:', err.message)
+    );
+
     res.status(201).json({ token, user: { id: user._id, name, email } });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 });
 
-// POST /api/auth/login
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;

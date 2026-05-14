@@ -1,0 +1,11 @@
+node_modules
+.git
+.github
+*.md
+.vscode
+.idea
+temp
+jupyter
+docs
+scripts
+assets

@@ -1,9 +1,10 @@
-const express = require('express');
-const router  = express.Router();
-const multer  = require('multer');
-const path    = require('path');
-const Post    = require('../models/Post');
-const protect = require('../middleware/auth');
+const express  = require('express');
+const router   = express.Router();
+const multer   = require('multer');
+const path     = require('path');
+const Post     = require('../models/post');
+const protect  = require('../middleware/auth');
+const notifier = require('../services/telegram');
 
 const storage = multer.diskStorage({
   destination: 'uploads/',
@@ -13,7 +14,6 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage, limits: { fileSize: 5 * 1024 * 1024 } });
 
-// GET /api/posts  — todos los posts (feed)
 router.get('/', async (req, res) => {
   try {
     const { category, search } = req.query;
@@ -27,7 +27,7 @@ router.get('/', async (req, res) => {
   }
 });
 
-// POST /api/posts  — crear post (requiere login)
+
 router.post('/', protect, upload.single('image'), async (req, res) => {
   try {
     const { title, category, condition, price } = req.body;
@@ -45,13 +45,16 @@ router.post('/', protect, upload.single('image'), async (req, res) => {
       imageUrl
     });
 
+    notifier.notifyNewPost(post).catch(err =>
+      console.error('[Telegram] Fallo al notificar nuevo post:', err.message)
+    );
+
     res.status(201).json(post);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 });
 
-// PUT /api/posts/:id  — editar (solo el dueño)
 router.put('/:id', protect, async (req, res) => {
   try {
     const post = await Post.findById(req.params.id);
@@ -68,7 +71,6 @@ router.put('/:id', protect, async (req, res) => {
   }
 });
 
-// DELETE /api/posts/:id  — eliminar (solo el dueño)
 router.delete('/:id', protect, async (req, res) => {
   try {
     const post = await Post.findById(req.params.id);
