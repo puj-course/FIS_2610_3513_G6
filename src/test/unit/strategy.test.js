@@ -3,6 +3,7 @@
  * Integrantes: Juan Pablo Sanchez, German Rodriguez
  */
 
+
 class CategoryFilter {
   filter(products, category) {
     if (!category || category === 'all') return products;
