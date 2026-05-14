@@ -1,8 +1,9 @@
-const express = require('express');
-const router  = express.Router();
-const bcrypt  = require('bcryptjs');
-const jwt     = require('jsonwebtoken');
-const User    = require('../models/user');
+const express  = require('express');
+const router   = express.Router();
+const bcrypt   = require('bcryptjs');
+const jwt      = require('jsonwebtoken');
+const User     = require('../models/user');
+const notifier = require('../services/telegram');
 
 router.post('/register', async (req, res) => {
   try {
@@ -20,6 +21,10 @@ router.post('/register', async (req, res) => {
       { id: user._id, email: user.email, name: user.name },
       process.env.JWT_SECRET,
       { expiresIn: '7d' }
+    );
+
+    notifier.notifyNewUser({ name, email }).catch(err =>
+      console.error('[Telegram] Fallo al notificar nuevo usuario:', err.message)
     );
 
     res.status(201).json({ token, user: { id: user._id, name, email } });
