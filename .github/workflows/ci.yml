@@ -1,6 +1,5 @@
 name: CI - Pruebas Unitarias y Cobertura
 
-
 on:
   push:
     branches: [ main, develop ]
@@ -15,7 +14,7 @@ jobs:
       - name: Clonar repositorio
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0   
+          fetch-depth: 0
 
       - name: Configurar Node.js
         uses: actions/setup-node@v4
@@ -25,26 +24,21 @@ jobs:
       - name: Instalar dependencias
         run: npm install
 
-      - name: Ejecutar pruebas unitarias con cobertura
+      - name: Ejecutar pruebas con cobertura
         run: npm run test:ci
-        continue-on-error: false
-      - name: Ver archivos generados
+
+      - name: Mostrar archivos de cobertura generados
+        run: find . -path ./node_modules -prune -o -name "*.info" -print -o -name "coverage-summary.json" -print
+
+      - name: Verificar cobertura en reporte
         run: |
-          find . -type f | grep coverage
-
-      - name: Verificar umbral de cobertura >70%
-        shell: bash
-        run: |
-          COVERAGE=$(node -e "console.log(require('./src/test/coverage/coverage-summary.json').total.lines.pct)")
-
-          echo "Cobertura de líneas: ${COVERAGE}%"
-
-          if (( $(echo "$COVERAGE < 70" | bc -l) )); then
-            echo "ERROR: Cobertura ${COVERAGE}% < 70%"
-            exit 1
-          else
-            echo "OK: Cobertura ${COVERAGE}% >= 70%"
-          fi
+          node -e "
+            const s = require('./src/test/coverage/coverage-summary.json');
+            const pct = s.total.lines.pct;
+            console.log('Cobertura de lineas: ' + pct + '%');
+            if (pct < 70) { console.error('ERROR: cobertura ' + pct + '% < 70%'); process.exit(1); }
+            else { console.log('OK: cobertura >= 70%'); }
+          "
 
       - name: Subir reportes como artefactos
         uses: actions/upload-artifact@v4
@@ -59,7 +53,6 @@ jobs:
   sonarcloud:
     runs-on: ubuntu-latest
     needs: test
-
     steps:
       - name: Clonar repositorio
         uses: actions/checkout@v4
@@ -71,12 +64,19 @@ jobs:
         with:
           node-version: '20'
 
-
       - name: Instalar dependencias
         run: npm install
 
-      - name: Ejecutar pruebas con cobertura (para Sonar)
+      - name: Generar cobertura para SonarCloud
         run: npm run test:ci
+
+      - name: Verificar que lcov.info existe
+        run: |
+          if [ ! -f "src/test/coverage/lcov.info" ]; then
+            echo "ERROR: lcov.info no encontrado"
+            exit 1
+          fi
+          echo "lcov.info encontrado, tamaño: $(wc -l < src/test/coverage/lcov.info) lineas"
 
       - name: Analizar con SonarCloud
         uses: SonarSource/sonarqube-scan-action@fd88b7d7ccbaefd23d8f36f73b59db7a3d246602
