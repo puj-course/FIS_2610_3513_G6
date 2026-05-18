@@ -1,7 +1,7 @@
 module.exports = {
   roots: ['<rootDir>/src/test/unit'],
   testMatch: ['**/*.test.js'],
-  testEnvironment: 'node',
+  testEnvironment: 'jsdom',
 
   collectCoverage: true,
   coverageDirectory: 'src/test/coverage',
