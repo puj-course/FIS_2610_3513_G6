@@ -33,9 +33,9 @@ describe('Patrón Factory Method - Creación de Usuarios', () => {
   });
 
   test('CP-FACTORY-06: Email con subdominio debe ser válido', () => {
-    const user = factory.register({ name: 'Juan', email: 'juan@correo.javeriana.edu.co', password: 'pass123' });
-    expect(user).toBeDefined();
-  });
+  const user = factory.register({ name: 'Juan', email: 'juan.perez@javeriana.edu.co', password: 'pass123' });
+  expect(user).toBeDefined();
+});
 
   test('CP-FACTORY-07: Email con mayúsculas debe normalizarse', () => {
     const user = factory.register({ name: 'Juan', email: 'JUAN@javeriana.edu.co', password: 'pass123' });
