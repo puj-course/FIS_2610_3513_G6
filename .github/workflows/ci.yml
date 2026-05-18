@@ -27,10 +27,7 @@ jobs:
       - name: Ejecutar pruebas con cobertura
         run: npm run test:ci
 
-      - name: Mostrar archivos de cobertura generados
-        run: find . -path ./node_modules -prune -o -name "*.info" -print -o -name "coverage-summary.json" -print
-
-      - name: Verificar cobertura en reporte
+      - name: Verificar cobertura >= 70%
         run: |
           node -e "
             const s = require('./src/test/coverage/coverage-summary.json');
@@ -49,6 +46,18 @@ jobs:
             src/test/reports/
             src/test/coverage/
           retention-days: 30
+
+      - name: Notificar resultado a Telegram
+        if: always()
+        run: |
+          STATUS="${{ job.status }}"
+          if [ "$STATUS" = "success" ]; then
+            MSG="*CI UniMercs - Pruebas OK*%0ACobertura >= 70%25%0ABranch: ${{ github.ref_name }}%0ACommit: ${{ github.sha }}"
+          else
+            MSG="*CI UniMercs - Pruebas FALLARON*%0ABranch: ${{ github.ref_name }}%0ACommit: ${{ github.sha }}%0ARevisa los logs en GitHub Actions."
+          fi
+          curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
+            -d "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}&text=${MSG}&parse_mode=Markdown" || true
 
   sonarcloud:
     runs-on: ubuntu-latest
@@ -76,10 +85,22 @@ jobs:
             echo "ERROR: lcov.info no encontrado"
             exit 1
           fi
-          echo "lcov.info encontrado, tamaño: $(wc -l < src/test/coverage/lcov.info) lineas"
+          echo "lcov.info encontrado: $(wc -l < src/test/coverage/lcov.info) lineas"
 
       - name: Analizar con SonarCloud
-        uses: SonarSource/sonarqube-scan-action@fd88b7d7ccbaefd23d8f36f73b59db7a3d246602
+        uses: SonarSource/sonarqube-scan-action@v5
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Notificar resultado SonarCloud a Telegram
+        if: always()
+        run: |
+          STATUS="${{ job.status }}"
+          if [ "$STATUS" = "success" ]; then
+            MSG="*SonarCloud UniMercs - Análisis OK*%0ABranch: ${{ github.ref_name }}%0ACommit: ${{ github.sha }}"
+          else
+            MSG="*SonarCloud UniMercs - Análisis FALLÓ*%0ABranch: ${{ github.ref_name }}%0ACommit: ${{ github.sha }}"
+          fi
+          curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
+            -d "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}&text=${MSG}&parse_mode=Markdown" || true

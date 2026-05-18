@@ -51,3 +51,16 @@ jobs:
           name: metricas-calidad
           path: metricas-reporte.txt
           retention-days: 30
+
+      - name: Notificar resultado métricas a Telegram
+        if: always()
+        run: |
+          STATUS="${{ job.status }}"
+          if [ "$STATUS" = "success" ]; then
+            RESUMEN=$(tail -6 metricas-reporte.txt | tr '\n' ' ' | cut -c1-250)
+            MSG="*Métricas UniMercs - OK*%0ABranch: ${{ github.ref_name }}%0AResumen: ${RESUMEN}"
+          else
+            MSG="*Métricas UniMercs - FALLÓ*%0ABranch: ${{ github.ref_name }}%0ACommit: ${{ github.sha }}"
+          fi
+          curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
+            -d "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}&text=${MSG}&parse_mode=Markdown" || true
