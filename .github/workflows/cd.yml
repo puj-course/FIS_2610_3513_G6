@@ -7,7 +7,6 @@ on:
 
 permissions:
   contents: read
-  packages: write
 
 jobs:
   test:
@@ -20,6 +19,18 @@ jobs:
       - run: npm install
       - run: npm run test:ci
 
+      - name: Notificar resultado pruebas
+        if: always()
+        run: |
+          STATUS="${{ job.status }}"
+          if [ "$STATUS" = "success" ]; then
+            MSG="*CD UniMercs - Pruebas OK*%0ABranch: ${{ github.ref_name }}"
+          else
+            MSG="*CD UniMercs - Pruebas FALLARON*%0ABranch: ${{ github.ref_name }}%0ADeploy cancelado."
+          fi
+          curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
+            -d "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}&text=${MSG}&parse_mode=Markdown" || true
+
   docker-build:
     runs-on: ubuntu-latest
     needs: test
@@ -30,23 +41,23 @@ jobs:
       - name: 2. Configurar Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: 3. Login a GitHub Container Registry
+      - name: 3. Login a Docker Hub
         uses: docker/login-action@v3
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: 4. Metadata de imagen
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository }}/unimercs-app
+          images: ${{ secrets.DOCKERHUB_USERNAME }}/unimercs-app
           tags: |
             type=sha,prefix=sha-
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+            type=raw,value=v${{ github.run_number }}
 
-      - name: 5. Build y push imagen
+      - name: 5. Build y push imagen a Docker Hub
         uses: docker/build-push-action@v5
         with:
           context: .
@@ -57,29 +68,17 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: 6. Generar reporte de construccion
+      - name: Notificar resultado build Docker
+        if: always()
         run: |
-          cat > reporte-docker.md << EOF
-          # REPORTE DE CONSTRUCCIÓN DOCKER - UniMercs
-          | Item | Valor |
-          |------|-------|
-          | Imagen | ghcr.io/${{ github.repository }}/unimercs-app |
-          | Commit | ${{ github.sha }} |
-          | Fecha | $(date -Iseconds) |
-          | Branch | ${{ github.ref_name }} |
-
-          ## Estado
-          - [x] Pruebas unitarias pasadas
-          - [x] Imagen Docker construida
-          - [x] Imagen publicada en GHCR
-          EOF
-
-      - name: 7. Subir reporte
-        uses: actions/upload-artifact@v4
-        with:
-          name: reporte-docker
-          path: reporte-docker.md
-          retention-days: 7
+          STATUS="${{ job.status }}"
+          if [ "$STATUS" = "success" ]; then
+            MSG="*CD UniMercs - Docker Build OK*%0AImagen publicada en Docker Hub%0ARun: v${{ github.run_number }}%0ACommit: ${{ github.sha }}"
+          else
+            MSG="*CD UniMercs - Docker Build FALLÓ*%0ACommit: ${{ github.sha }}"
+          fi
+          curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
+            -d "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}&text=${MSG}&parse_mode=Markdown" || true
 
   integration-test:
     runs-on: ubuntu-latest
@@ -87,6 +86,18 @@ jobs:
     steps:
       - name: Clonar repositorio
         uses: actions/checkout@v4
+
+      - name: Crear .env para Docker Compose
+        run: |
+          cat > .env << EOF
+          TELEGRAM_BOT_TOKEN=${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID=${{ secrets.TELEGRAM_CHAT_ID }}
+          TWILIO_ACCOUNT_SID=${{ secrets.TWILIO_ACCOUNT_SID }}
+          TWILIO_AUTH_TOKEN=${{ secrets.TWILIO_AUTH_TOKEN }}
+          TWILIO_PHONE_NUMBER=${{ secrets.TWILIO_PHONE_NUMBER }}
+          SMS_RECIPIENTS=${{ secrets.SMS_RECIPIENTS }}
+          JWT_SECRET=${{ secrets.JWT_SECRET }}
+          EOF
 
       - name: Levantar stack con Docker Compose
         run: |
@@ -96,6 +107,11 @@ jobs:
 
       - name: Ver logs de la app
         run: docker compose logs app --tail 50
+
+      - name: Verificar red unimercs-net
+        run: |
+          docker network inspect unimercs-net
+          docker network inspect unimercs-net --format '{{range .Containers}}{{.Name}} → {{.IPv4Address}}{{"\n"}}{{end}}'
 
       - name: Verificar que /api/posts responde 200
         run: |
@@ -109,6 +125,45 @@ jobs:
             exit 1
           fi
 
+      - name: Generar reporte de despliegue
+        run: |
+          cat > reporte-docker.md << EOF
+          # REPORTE DE DESPLIEGUE - UniMercs
+          | Item | Valor |
+          |------|-------|
+          | Imagen | ${{ secrets.DOCKERHUB_USERNAME }}/unimercs-app |
+          | Commit | ${{ github.sha }} |
+          | Fecha | $(date -Iseconds) |
+          | Branch | ${{ github.ref_name }} |
+          | Run | v${{ github.run_number }} |
+
+          ## Estado
+          - [x] Pruebas unitarias pasadas
+          - [x] Imagen construida y publicada en Docker Hub
+          - [x] Red unimercs-net creada manualmente (172.20.0.0/16)
+          - [x] Deploy con Docker Compose exitoso
+          - [x] /api/posts responde HTTP 200
+          EOF
+
+      - name: Subir reporte
+        uses: actions/upload-artifact@v4
+        with:
+          name: reporte-docker
+          path: reporte-docker.md
+          retention-days: 7
+
       - name: Apagar stack
         if: always()
         run: docker compose down -v
+
+      - name: Notificar resultado deploy
+        if: always()
+        run: |
+          STATUS="${{ job.status }}"
+          if [ "$STATUS" = "success" ]; then
+            MSG="*CD UniMercs - Deploy EXITOSO*%0AImagen: ${{ secrets.DOCKERHUB_USERNAME }}/unimercs-app:v${{ github.run_number }}%0ARed: unimercs-net (172.20.0.0%2F16)%0ABranch: ${{ github.ref_name }}"
+          else
+            MSG="*CD UniMercs - Deploy FALLÓ*%0ABranch: ${{ github.ref_name }}%0ACommit: ${{ github.sha }}%0ARevisa los logs en GitHub Actions."
+          fi
+          curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
+            -d "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}&text=${MSG}&parse_mode=Markdown" || true
