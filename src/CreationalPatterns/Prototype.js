@@ -24,3 +24,5 @@ class PostPrototype {
     return copy;
   }
 }
+
+module.exports = { PostPrototype };
