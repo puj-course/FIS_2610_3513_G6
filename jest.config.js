@@ -8,10 +8,9 @@ module.exports = {
   coverageReporters: ['html', 'json', 'lcov', 'text', 'json-summary'],
 
   collectCoverageFrom: [
-    'unimercs-backend/**/*.js',
-    '!unimercs-backend/**/node_modules/**',
-    '!**/node_modules/**',
-    '!unimercs-backend/server.js'
+    'src/behavioralPatterns/**/*.js',
+    'src/CreationalPatterns/**/*.js',
+    'src/structuralPatterns/**/*.js',
   ],
 
   reporters: ['default'],
