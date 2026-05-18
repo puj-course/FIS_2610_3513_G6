@@ -47,3 +47,5 @@ class NotificationObserver extends PostObserver {
     window.dispatchEvent(new CustomEvent('unimercs:new-post', { detail: post }));
   }
 }
+
+module.exports = { PostObserver, PostEventBus, FeedUpdater, ProfileUpdater, NotificationObserver };

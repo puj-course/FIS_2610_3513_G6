@@ -46,3 +46,5 @@ class ProductFilter {
     return this.strategy.filter(products, value);
   }
 }
+
+module.exports = { FilterStrategy, CategoryFilter, TextSearchFilter, PriceRangeFilter, ProductFilter };

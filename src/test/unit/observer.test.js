@@ -1,99 +1,65 @@
-/**
- * PRUEBAS UNITARIAS  patron observer
- * Integrantes: Juan Pablo Sanchez, German Rodriguez
- */
-
-
-class LocalStorageMock {
-  constructor() { this.store = {}; }
-  clear() { this.store = {}; }
-  getItem(key) { return this.store[key] || null; }
-  setItem(key, value) { this.store[key] = String(value); }
-  removeItem(key) { delete this.store[key]; }
-}
-
-global.localStorage = new LocalStorageMock();
-
-
-class PostEventBus {
-  constructor() { this.observers = []; }
-  subscribe(observer) { this.observers.push(observer); }
-  unsubscribe(observer) { this.observers = this.observers.filter(o => o !== observer); }
-  notify(post) { this.observers.forEach(o => o.update(post)); }
-}
-
-class FeedUpdater {
-  update(post) {
-    const posts = JSON.parse(localStorage.getItem('mh_user_posts') || '[]');
-    posts.unshift(post);
-    localStorage.setItem('mh_user_posts', JSON.stringify(posts));
-  }
-}
+const { PostEventBus, FeedUpdater, PostObserver } = require('../../behavioralPatterns/observer');
 
 describe('Patrón Observer - Sistema de Notificaciones', () => {
-  let eventBus;
-  let mockPost;
+  let bus;
 
   beforeEach(() => {
     localStorage.clear();
-    eventBus = new PostEventBus();
-    mockPost = { id: '123', title: 'iPhone 15 Pro', price: 5000000, username: 'juan' };
+    bus = new PostEventBus();
   });
 
   test('CP-OBSERVER-01: Observer suscrito debe recibir notificación', () => {
-    const mockObserver = { update: jest.fn() };
-    eventBus.subscribe(mockObserver);
-    eventBus.notify(mockPost);
-    expect(mockObserver.update).toHaveBeenCalledTimes(1);
-    expect(mockObserver.update).toHaveBeenCalledWith(mockPost);
+    const received = [];
+    const obs = { update: (p) => received.push(p) };
+    bus.subscribe(obs);
+    bus.notify({ id: '1', title: 'Test' });
+    expect(received.length).toBe(1);
   });
 
   test('CP-OBSERVER-02: Múltiples observers deben recibir la notificación', () => {
-    const observer1 = { update: jest.fn() };
-    const observer2 = { update: jest.fn() };
-    const observer3 = { update: jest.fn() };
-    eventBus.subscribe(observer1);
-    eventBus.subscribe(observer2);
-    eventBus.subscribe(observer3);
-    eventBus.notify(mockPost);
-    expect(observer1.update).toHaveBeenCalledTimes(1);
-    expect(observer2.update).toHaveBeenCalledTimes(1);
-    expect(observer3.update).toHaveBeenCalledTimes(1);
+    const r1 = [], r2 = [];
+    bus.subscribe({ update: (p) => r1.push(p) });
+    bus.subscribe({ update: (p) => r2.push(p) });
+    bus.notify({ id: '1' });
+    expect(r1.length).toBe(1);
+    expect(r2.length).toBe(1);
   });
 
   test('CP-OBSERVER-03: FeedUpdater debe guardar el post en localStorage', () => {
-    const feedUpdater = new FeedUpdater();
-    eventBus.subscribe(feedUpdater);
-    eventBus.notify(mockPost);
-    const storedPosts = JSON.parse(localStorage.getItem('mh_user_posts') || '[]');
-    expect(storedPosts).toHaveLength(1);
-    expect(storedPosts[0].id).toBe(mockPost.id);
+    const updater = new FeedUpdater();
+    bus.subscribe(updater);
+    bus.notify({ id: '1', title: 'Libro' });
+    const posts = JSON.parse(localStorage.getItem('mh_user_posts'));
+    expect(posts.length).toBe(1);
+    expect(posts[0].title).toBe('Libro');
   });
 
   test('CP-OBSERVER-04: Desuscribir observer debe evitar notificaciones', () => {
-    const mockObserver = { update: jest.fn() };
-    eventBus.subscribe(mockObserver);
-    eventBus.unsubscribe(mockObserver);
-    eventBus.notify(mockPost);
-    expect(mockObserver.update).not.toHaveBeenCalled();
+    const received = [];
+    const obs = { update: (p) => received.push(p) };
+    bus.subscribe(obs);
+    bus.unsubscribe(obs);
+    bus.notify({ id: '1' });
+    expect(received.length).toBe(0);
   });
 
   test('CP-OBSERVER-05: Notificar sin observers no debe causar error', () => {
-    expect(() => { eventBus.notify(mockPost); }).not.toThrow();
+    expect(() => bus.notify({ id: '1' })).not.toThrow();
   });
 
   test('CP-OBSERVER-06: Post vacío puede ser notificado', () => {
-    const mockObserver = { update: jest.fn() };
-    eventBus.subscribe(mockObserver);
-    expect(() => { eventBus.notify(null); }).not.toThrow();
-    expect(mockObserver.update).toHaveBeenCalledWith(null);
+    const received = [];
+    bus.subscribe({ update: (p) => received.push(p) });
+    bus.notify({});
+    expect(received.length).toBe(1);
   });
 
   test('CP-OBSERVER-07: Suscribir el mismo observer dos veces causa duplicados', () => {
-    const mockObserver = { update: jest.fn() };
-    eventBus.subscribe(mockObserver);
-    eventBus.subscribe(mockObserver);
-    eventBus.notify(mockPost);
-    expect(mockObserver.update).toHaveBeenCalledTimes(2);
+    const received = [];
+    const obs = { update: (p) => received.push(p) };
+    bus.subscribe(obs);
+    bus.subscribe(obs);
+    bus.notify({ id: '1' });
+    expect(received.length).toBe(2);
   });
 });

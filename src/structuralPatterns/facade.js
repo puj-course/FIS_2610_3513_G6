@@ -62,3 +62,5 @@ class AuthFacade {
     return this.session.isActive();
   }
 }
+
+module.exports = { UserStorage, CredentialValidator, SessionManager, AuthFacade };

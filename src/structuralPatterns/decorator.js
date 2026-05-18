@@ -43,3 +43,5 @@ class SellerDecorator extends PostDecorator {
     return data;
   }
 }
+
+module.exports = { BasePost, PostDecorator, TimestampDecorator, SellerDecorator };
