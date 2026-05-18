@@ -1,35 +1,4 @@
-/**
- * PRUEBAS UNITARIAS del patron decorator
- * Integrantes: Juan Pablo Sánchez, German Rodríguez
- */
-
-class BasePost {
-  constructor(data) { Object.assign(this, data); }
-  getData() { return { ...this }; }
-}
-
-class PostDecorator {
-  constructor(post) { this.post = post; }
-  getData() { return this.post.getData(); }
-}
-
-class TimestampDecorator extends PostDecorator {
-  getData() {
-    const data = this.post.getData();
-    data.createdAt = new Date().toISOString();
-    data.updatedAt = new Date().toISOString();
-    return data;
-  }
-}
-
-class SellerDecorator extends PostDecorator {
-  constructor(post, sellerEmail) { super(post); this.sellerEmail = sellerEmail; }
-  getData() {
-    const data = this.post.getData();
-    data.seller = this.sellerEmail;
-    return data;
-  }
-}
+const { BasePost, TimestampDecorator, SellerDecorator } = require('../../structuralPatterns/decorator');
 
 describe('Patrón Decorator - Enriquecimiento de Publicaciones', () => {
   let basePost;
@@ -40,7 +9,6 @@ describe('Patrón Decorator - Enriquecimiento de Publicaciones', () => {
     basePost = new BasePost(baseData);
   });
 
-  // PRUEBAS POSITIVAS (sin errores)
   test('CP-DECORATOR-01: BasePost.getData() retorna los datos originales', () => {
     const data = basePost.getData();
     expect(data.id).toBe(baseData.id);
@@ -73,7 +41,6 @@ describe('Patrón Decorator - Enriquecimiento de Publicaciones', () => {
     expect(data.title).toBe(baseData.title);
   });
 
-  // PRUEBAS DE BORDE
   test('CP-DECORATOR-05: Decorar con seller email vacío funciona', () => {
     const decorated = new SellerDecorator(basePost, '');
     const data = decorated.getData();
