@@ -44,3 +44,5 @@ class JaverianaUserFactory extends UserFactory {
     return new StudentUser(data);
   }
 }
+
+module.exports = { User, StudentUser, UserFactory, JaverianaUserFactory };
