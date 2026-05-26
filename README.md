@@ -100,8 +100,8 @@ FIS_2610_3513_G6/
 
 ### 1. Clonar el repositorio
 ```bash
-git clone https://github.com/jsanchez312/unimercs.git
-cd unimercs
+git clone https://github.com/puj-course/FIS_2610_3513_G6
+cd FIS_2610_3513_G6
 ```
 
 ### 2. Instalar dependencias
@@ -154,7 +154,6 @@ npm run test:watch      # modo watch para desarrollo
 4. Abre un **Pull Request** dirigido a la rama `dev` (flujo Gitflow).
 5. Asegúrate de que el CI (Jest, SonarQube) apruebe el PR.
 
-Consulta [`CONTRIBUTING.md`](file:///c:/Users/juanp/Downloads/iririr/FIS_2610_3513_G6/CONTRIBUTING.md) para más detalles.
 
 ---
 
