@@ -1,13 +1,13 @@
 ![UNIMERCS Logo](assets/UnimercsLogo.png)
 
-# UNIMERCS
-
-## Descripción
-
-UNIMERCS es una plataforma de marketplace universitario diseñada para estudiantes de la Pontificia Universidad Javeriana. El sistema permite a los estudiantes publicar, explorar y contactar vendedores de productos y servicios dentro del campus, incluyendo libros, comida y objetos de segunda mano. El objetivo es centralizar el intercambio entre la comunidad estudiantil en un solo lugar seguro y accesible con correo institucional.
+# UNIMERCS – Marketplace Universitario
 
 ---
 
+## Visión General
+UNIMERCS es un **marketplace universitario** diseñada para la comunidad de la **Pontificia Universidad Javeriana**. Permite a los estudiantes publicar, explorar y contactar a vendedores de libros, alimentos y objetos de segunda mano dentro del campus, todo mediante una interfaz HTML/CSS/JS simple y un backend Node.js/Express.
+
+---
 ## Equipo del Proyecto
 
 | Nombre               | Rol                                   | GitHub                                             |
@@ -17,76 +17,144 @@ UNIMERCS es una plataforma de marketplace universitario diseñada para estudiant
 
 ---
 
-## Tecnologías Utilizadas
-
-- **Frontend:** HTML5, CSS3, JavaScript (Vanilla)
-- **Base de Datos:** PostgreSQL *(por implementar)*
-- **Control de versiones:** Git + GitHub
-- **Metodología:** Scrum + Gitflow
+## Tecnologías
+| Capa | Tecnologías |
+|------|-------------|
+| **Frontend** | HTML5, CSS3, JavaScript (Vanilla) |
+| **Backend** | Node.js (v20+), Express, Mongoose (MongoDB) – se prevé migrar a PostgreSQL |
+| **Base de datos** | MongoDB (actual) |
+| **Pruebas** | Jest (unitarias e integración) |
+| **Contenedores** | Docker, Docker‑Compose |
+| **Integración continua / Linter** | SonarQube, ESLint (a través de `metrics.js`) |
+| **Control de versiones** | Git + GitHub (flujo Gitflow) |
+| **Documentación** | Markdown, diagramas Mermaid, wiki en `docs/wiki` |
 
 ---
 
-## Estructura del Proyecto
-
-```text
-unimercs/
-├── .github/
-│   ├── ISSUE_TEMPLATE/
-│   │   ├── user_story.md
-│   │   └── bug_report.md
-│   └── PULL_REQUEST_TEMPLATE.md
-├── assets/
-│   └── logo.png
-├── docs/
-│   ├── ECB.md
-│   ├── clases.md
-│   ├── componentes.md
-│   └── despliegue.md
-├── src/
-│   ├── prueba.html
-│   ├── pruebaExplorar.html
-│   ├── pruebaCrearPub.html
-│   ├── pruebaPerfil.html
-│   ├── betalogin.html
-│   ├── BetaRegister.html
-│   ├── pruebaPerfil.css
-│   └── pruebaPerfil.js
-├── .gitignore
-├── README.md
-└── CHANGELOG.md
+## Estructura completa del proyecto
+```
+FIS_2610_3513_G6/
+├─ .dockerignore
+├─ .git/
+├─ .github/
+│   └─ ISSUE_TEMPLATE/
+│       ├─ bug_report.md
+│       └─ user_story.md
+├─ .gitignore
+├─ BOILERPLATE_template.md
+├─ CHANGELOG.md
+├─ CONTRIBUTING.md
+├─ Dockerfile
+├─ LICENSE
+├─ Makefile
+├─ README.md
+├─ assets/
+│   ├─ .gitkeep
+│   └─ UnimercsLogo.png
+├─ conf/
+├─ docker-compose.yml
+├─ docs/
+│   ├─ ECB.md
+│   ├─ clases.md
+│   ├─ componentes.md
+│   └─ despliegue.md
+├─ frontend/
+├─ jest.config.js
+├─ jest.setup.js
+├─ jupyter/
+├─ metrics.js
+├─ package.json
+├─ reports/
+├─ scripts/
+├─ services/
+├─ sonar-project.properties
+├─ src/
+│   ├─ CreationalPatterns/
+│   │   ├─ .gitkeep
+│   │   ├─ Prototype.js
+│   │   └─ factoryMethod.js
+│   ├─ behavioralPatterns/
+│   │   ├─ .gitkeep
+│   │   ├─ observer.js
+│   │   └─ strategy.js
+│   ├─ main/
+│   │   ├─ html/
+│   │   └─ resources/
+│   ├─ structuralPatterns/
+│   │   ├─ .gitkeep
+│   │   ├─ decorator.js
+│   │   └─ facade.js
+│   └─ test/
+├─ temp/
+└─ unimercs-backend/
 ```
 
 ---
 
-## Instalación y Ejecución
+## Instalación y Ejecución Local
+### Prerrequisitos
+- **Git**
+- **Node.js ≥ 20** (incluye npm)
+- **Docker** (opcional, para despliegue en contenedor)
+- **VS Code** con la extensión *Live Server* (recomendado)
 
-**Requisitos**
-- Git
-- Navegador web moderno (Chrome, Firefox, Edge)
-- Extensión Live Server (recomendada para desarrollo local)
-
-### Clonar el repositorio
-
+### 1. Clonar el repositorio
 ```bash
 git clone https://github.com/jsanchez312/unimercs.git
 cd unimercs
 ```
 
-### Ejecución local
-
-Abre el archivo `prueba.html` directamente en el navegador, o usa Live Server en VS Code:
-
+### 2. Instalar dependencias
 ```bash
-# Con Live Server en VS Code
-# Click derecho sobre prueba.html → "Open with Live Server"
+npm install
 ```
 
-### Ejecución de pruebas
+### 3. Configurar variables de entorno
+```bash
+cp .env.example .env   # editar .env con tus credenciales y puertos
+```
 
-Las pruebas son manuales por ahora. Verifica los flujos principales:
-- Registro e inicio de sesión con correo `@javeriana.edu.co`
-- Creación y visualización de publicaciones
-- Filtrado por categoría en la pantalla Explorar
+### 4. Ejecutar la aplicación
+#### Opción 1 – Servidor Node.js
+```bash
+npm start   # ejecuta server.js (escucha en http://localhost:3000)
+```
+#### Opción 2 – Docker
+```bash
+docker compose up --build   # levanta Node + Mongo
+```
+Accede a `http://localhost:3000`.
+
+### 5. Frontend con Live Server (VS Code)
+Abre cualquier archivo dentro de `src/` y elige **“Open with Live Server”** para recarga automática.
+
+---
+
+## Pruebas
+```bash
+npm test                # pruebas unitarias con Jest
+npm run test:coverage   # genera reporte de cobertura
+npm run test:watch      # modo watch para desarrollo
+```
+> Actualmente la mayoría de las pruebas son manuales (flujos de registro, inicio de sesión, creación y búsqueda de publicaciones). Se irán automatizando progresivamente.
+
+---
+
+## Documentación y Wiki
+- **Docs** (`docs/`): decisiones de arquitectura, guía de despliegue, componentes, etc.
+- **Guías de usuario** (`user_guide/`): tutoriales paso‑a‑paso para estudiantes.
+- **Diagramas** (`Diagramas/`): diagramas de flujo, entidad‑relación, arquitectura.
+
+---
+
+## Contribuir
+1. Haz **fork** del repositorio.
+2. Crea una rama descriptiva: `git checkout -b feature/nueva-funcionalidad`.
+3. Realiza los cambios y verifica que pasen las pruebas.
+4. Abre un **Pull Request** dirigido a la rama `dev` (flujo Gitflow).
+5. Asegúrate de que el CI (Jest, SonarQube) apruebe el PR.
+
+Consulta [`CONTRIBUTING.md`](file:///c:/Users/juanp/Downloads/iririr/FIS_2610_3513_G6/CONTRIBUTING.md) para más detalles.
 
 ---
 
@@ -100,19 +168,7 @@ Las pruebas son manuales por ahora. Verifica los flujos principales:
 ---
 
 ## Contacto
-
-**Juan Pablo Sánchez**
-Estudiante, Pontificia Universidad Javeriana
-📧 sanchez.jp@javeriana.edu.co
-🐙 [github.com/jsanchez312](https://github.com/jsanchez312)
-
-**Germán Rodríguez**
-Estudiante, Pontificia Universidad Javeriana
-📧 ge.rodriguez@javeriana.edu.co
-🐙 [github.com/germandrzmr](https://github.com/germandrzmr)
+- **Juan Pablo Sánchez** – estudiante – `sanchez.jp@javeriana.edu.co` – [GitHub](https://github.com/jsanchez312)
+- **Germán Rodríguez** – estudiante – `ge.rodriguez@javeriana.edu.co` – [GitHub](https://github.com/germandrzmr)
 
 ---
-
-## Licencia
-
-Proyecto desarrollado con fines académicos — Pontificia Universidad Javeriana 2025.
